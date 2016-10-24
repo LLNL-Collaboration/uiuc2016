@@ -1,0 +1,30 @@
+html,body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.svgClass {
+    width: 100%;
+    height: 100%;
+}
+
+.zoneClass {
+    fill: wheat;
+}
+
+path:hover {
+    fill: crimson;
+}
+
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    text-align: center;
+    font: 14px sans-serif;
+    line-height: 1;
+    padding: 8px 12px;
+    border-radius: 2px;
+    pointer-events: none;
+}
