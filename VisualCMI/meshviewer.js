@@ -145,7 +145,7 @@ MeshViewer.prototype._setupZoom = function()
 
 MeshViewer.prototype._setupToolTip = function(document)
 {
-    this._toolTip = d3.select(document.body).append('div')
+    this._toolTip = d3.select(document.querySelector('body')).append('div')
         .attr('class', 'tooltip')
         .style('opacity', 0);
 }
