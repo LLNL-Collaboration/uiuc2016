@@ -18,7 +18,5 @@ describe('MeshViewer', function () {
             var viewer = new MeshViewer("test", jsdom.jsdom());
             assert.equal("test", viewer._name);
         });
-
-        it()
     });
 });
