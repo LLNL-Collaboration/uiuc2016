@@ -42,11 +42,9 @@ var data = fs.readFileSync("./index.html", "utf8");
 var document = jsdom.jsdom(data);
 
 var viewer = new MeshViewer("meshdiv", document);
-//viewer.loadData("rz", testmesh, document);
-viewer.loadBlueprintData(blueprintmesh, document);
+viewer.loadData("rz", testmesh, document);
+//viewer.loadBlueprintData(blueprintmesh, document);
 window.onresize = function() { viewer.updateViewBox(); }
-
-//console.log("hello!!!!!!!!!" + document.documentElement.outerHTML);
 
 // fs.writeFile('out.html', document.documentElement.outerHTML);
 

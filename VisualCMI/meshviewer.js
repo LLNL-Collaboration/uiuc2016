@@ -71,8 +71,6 @@ MeshViewer.prototype.loadData = function(type, file, document)
 	self._nodes = file.nodes;
 	self._zones = file.zones;
 
-	//console.log("debugged load data " + JSON.stringify(file));
-	
 	self._setupMesh(document);
 	self._setupZones();
 	self._setupView(file.views['main']);
@@ -127,8 +125,8 @@ MeshViewer.prototype._shrinkZone = function(zone)
         var val0 = 0, val1 = 0;
         for (i = 0; i < ids.length; ++i) {
             var pos = nodes[ids[i]]['pos'];
-			console.log([ids[i]]);
-			console.log(nodes[ids[i]]);
+			//console.log([ids[i]]);
+			//console.log(nodes[ids[i]]);
             val0 += pos[dims[0]];
             val1 += pos[dims[1]];
         }
