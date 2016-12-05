@@ -46,14 +46,8 @@ viewer.loadData("rz", testmesh, document);
 //viewer.loadBlueprintData(blueprintmesh, document);
 window.onresize = function() { viewer.updateViewBox(); }
 
-// fs.writeFile('out.html', document.documentElement.outerHTML);
-
-
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  // res.render('index', document);
-
-
   res.send(document.documentElement.outerHTML);
 });
 
