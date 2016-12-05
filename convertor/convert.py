@@ -27,23 +27,24 @@ blueprint_dict["topologies"]["mesh"]["elements"]["connectivity"] = []
 r = []
 z = []
 ordered_data = {}
-dummy_value = {"pos":{"r":-1, "z":-1}}
-#Convert key from string to integer
 
 prev_key = -1
 for key, value in data["coord"].items():
-	if (int(key) - prev_key) > 1:
-		for i in range(prev_key+1, int(key)):
-			ordered_data[i] = dummy_value
-	elif (int(key) - prev_key) < 1:
-		print 'Incorrect node index'
-	ordered_data[int(key)] = value 
+
+	ordered_data[int(key)] = value
 
 #Loop through ordered data
 
 for key, value in ordered_data.items():
+	if (int(key) - prev_key) > 1:
+			num_to_fill = int(key) - prev_key - 1
+			r.extend([-1]*num_to_fill)
+			z.extend([-1]*num_to_fill)
+	elif (int(key) - prev_key) < 1:
+		print 'Incorrect node index'	
 	r.append(value["pos"]["r"])
 	z.append(value["pos"]["z"])
+	prev_key = int(key) 
 
 blueprint_dict["coordsets"]["coords"]["values"]["r"] = r
 blueprint_dict["coordsets"]["coords"]["values"]["z"] = z
