@@ -27,6 +27,38 @@ var MeshViewer = function (name, document)
 
 /******************** public functions ********************/
 
+MeshViewer.prototype.loadBlueprintData = function(file, document)
+{
+	var converted = {
+		nodes: {},
+		zones: {}
+	};
+	
+	var coord = file.coordsets.coords.values;
+	var coordSys = file.coordsets.coords.system;
+	if (coordSys === 'rz') {
+		for (var i=0; i<coord.r.length; i++) {
+			var rValue = coord.r[i];
+			var zValue = coord.z[i];
+			converted.nodes[i] = {
+				"pos": {
+					'r' : rValue,
+					'z' : zValue
+				}
+			};
+		}
+	}
+	var topo = file.topologies.mesh.elements.connectivity;
+	for (var i=0; i<topo.length/4; i++) {
+		var mesh = topo.slice(i*4, (i+1)*4);
+		converted.zones[i] = {
+			'nids': mesh
+		};
+	}
+		
+	this.loadData(coordSys, converted, document);
+}
+
 MeshViewer.prototype.loadData = function(type, file, document)
 {
     if (type === 'rz')
@@ -36,15 +68,14 @@ MeshViewer.prototype.loadData = function(type, file, document)
 
     var self = this;  // for anonymous functions
 
+	self._nodes = file.nodes;
+	self._zones = file.zones;
 
-        self._nodes = file.nodes;
-        self._zones = file.zones;
-
-        //console.log("debugged load data " + JSON.stringify(file));
-
-        self._setupMesh(document);
-        self._setupZones();
-        self._setupView(file.views['main']);
+	//console.log("debugged load data " + JSON.stringify(file));
+	
+	self._setupMesh(document);
+	self._setupZones();
+	self._setupView(file.views['main']);
 
 }
 
@@ -96,6 +127,8 @@ MeshViewer.prototype._shrinkZone = function(zone)
         var val0 = 0, val1 = 0;
         for (i = 0; i < ids.length; ++i) {
             var pos = nodes[ids[i]]['pos'];
+			console.log([ids[i]]);
+			console.log(nodes[ids[i]]);
             val0 += pos[dims[0]];
             val1 += pos[dims[1]];
         }
