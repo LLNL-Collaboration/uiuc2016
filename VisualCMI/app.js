@@ -10,8 +10,8 @@ var router = express.Router();
 var MeshViewer = require('./meshviewer');
 
 // import test mesh
-var testmesh = require('./testmesh.json');
-var blueprintmesh = require('./blueprint_mesh.json');
+// var testmesh = require('./testmesh.json');
+var blueprintmesh = require('../convertor/blueprint_mesh.json');
 
 // import js dom
 var window = require('jsdom').jsdom().defaultView;
@@ -42,8 +42,8 @@ var data = fs.readFileSync("./index.html", "utf8");
 var document = jsdom.jsdom(data);
 
 var viewer = new MeshViewer("meshdiv", document);
-viewer.loadData("rz", testmesh, document);
-//viewer.loadBlueprintData(blueprintmesh, document);
+// viewer.loadData("rz", testmesh, document);
+viewer.loadBlueprintData(blueprintmesh, document);
 window.onresize = function() { viewer.updateViewBox(); }
 
 /* GET home page. */

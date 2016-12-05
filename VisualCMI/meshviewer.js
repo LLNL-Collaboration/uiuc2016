@@ -31,9 +31,14 @@ MeshViewer.prototype.loadBlueprintData = function(file, document)
 {
 	var converted = {
 		nodes: {},
-		zones: {}
+		zones: {},
+        views: {"main": {
+            "rMax": 8.9,
+            "rMin": 0.0,
+            "zMax": 45,
+            "zMin": 19
+        }}
 	};
-	
 	var coord = file.coordsets.coords.values;
 	var coordSys = file.coordsets.coords.system;
 	if (coordSys === 'rz') {
