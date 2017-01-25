@@ -4,7 +4,7 @@ npm install
 ```
 
 
-To run do
+To run do (server will be running on http://localhost:3000)
 ```
 npm start
 ```
