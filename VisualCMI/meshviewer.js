@@ -12,7 +12,7 @@ var MeshViewer = function (name, document)
     this._zonesElem = 0;
 
     this._dims = [];
-    this._nodes = [];
+    this._nodes = {};
     this._zones = [];
 
     this._viewBox = [];
@@ -27,42 +27,42 @@ var MeshViewer = function (name, document)
 
 /******************** public functions ********************/
 
-MeshViewer.prototype.loadBlueprintData = function(file, document)
-{
-	var converted = {
-		nodes: {},
-		zones: {},
-        views: {"main": {
-            "rMax": 8.9,
-            "rMin": 0.0,
-            "zMax": 45,
-            "zMin": 19
-        }}
-	};
-	var coord = file.coordsets.coords.values;
-	var coordSys = file.coordsets.coords.system;
-	if (coordSys === 'rz') {
-		for (var i=0; i<coord.r.length; i++) {
-			var rValue = coord.r[i];
-			var zValue = coord.z[i];
-			converted.nodes[i] = {
-				"pos": {
-					'r' : rValue,
-					'z' : zValue
-				}
-			};
-		}
-	}
-	var topo = file.topologies.mesh.elements.connectivity;
-	for (var i=0; i<topo.length/4; i++) {
-		var mesh = topo.slice(i*4, (i+1)*4);
-		converted.zones[i] = {
-			'nids': mesh
-		};
-	}
+// MeshViewer.prototype.loadBlueprintData = function(file, document)
+// {
+// 	var converted = {
+// 		nodes: {},
+// 		zones: {},
+//         views: {"main": {
+//             "rMax": 8.9,
+//             "rMin": 0.0,
+//             "zMax": 45,
+//             "zMin": 19
+//         }}
+// 	};
+// 	var coord = file.coordsets.coords.values;
+// 	var coordSys = file.coordsets.coords.system;
+// 	if (coordSys === 'rz') {
+// 		for (var i=0; i<coord.r.length; i++) {
+// 			var rValue = coord.r[i];
+// 			var zValue = coord.z[i];
+// 			converted.nodes[i] = {
+// 				"pos": {
+// 					'r' : rValue,
+// 					'z' : zValue
+// 				}
+// 			};
+// 		}
+// 	}
+// 	var topo = file.topologies.mesh.elements.connectivity;
+// 	for (var i=0; i<topo.length/4; i++) {
+// 		var mesh = topo.slice(i*4, (i+1)*4);
+// 		converted.zones[i] = {
+// 			'nids': mesh
+// 		};
+// 	}
 		
-	this.loadData(coordSys, converted, document);
-}
+// 	this.loadData(coordSys, converted, document);
+// }
 
 MeshViewer.prototype.loadData = function(type, file, document)
 {
@@ -72,14 +72,32 @@ MeshViewer.prototype.loadData = function(type, file, document)
         this._dims = ['x', 'y'];
 
     var self = this;  // for anonymous functions
+    
+    self._nodes[self._dims[0]] = file.coordsets.coords.values[self._dims[0]];
+    self._nodes[self._dims[1]] = file.coordsets.coords.values[self._dims[1]];
 
-	self._nodes = file.nodes;
-	self._zones = file.zones;
+    zones = {}
+    var topo = file.topologies.mesh.elements.connectivity;
+    for (var i=0; i<topo.length/4; i++) {
+        var mesh = topo.slice(i*4, (i+1)*4);
+        zones[i] = {
+            'nids': mesh
+        };
+    }
 
-	self._setupMesh(document);
-	self._setupZones();
-	self._setupView(file.views['main']);
+    self._zones = zones;
 
+    self._setupMesh(document);
+    self._setupZones();
+
+    var views = {
+        "rMax": 8.9,
+        "rMin": 0.0,
+        "zMax": 45,
+        "zMin": 19
+    };
+
+    self._setupView(views);
 }
 
 MeshViewer.prototype.updateViewBox = function()
@@ -114,8 +132,8 @@ MeshViewer.prototype.updateViewBox = function()
 MeshViewer.prototype._shrinkNode = function(mid, node)
 {
     var dims = this._dims;
-    return [this._shrink * node[dims[0]] + this._invShrink * mid[dims[0]],
-            this._shrink * node[dims[1]] + this._invShrink * mid[dims[1]]];
+    return [this._shrink * node[0] + this._invShrink * mid[dims[0]],
+            this._shrink * node[1] + this._invShrink * mid[dims[1]]];
 }
 
 // shrink zone geometry towards centroid
@@ -129,11 +147,8 @@ MeshViewer.prototype._shrinkZone = function(zone)
     if (!('mid' in zone)) {
         var val0 = 0, val1 = 0;
         for (i = 0; i < ids.length; ++i) {
-            var pos = nodes[ids[i]]['pos'];
-			//console.log([ids[i]]);
-			//console.log(nodes[ids[i]]);
-            val0 += pos[dims[0]];
-            val1 += pos[dims[1]];
+            val0 += nodes[dims[0]][ids[i]];
+            val1 += nodes[dims[1]][ids[i]];
         }
         var mid = zone['mid'] = {};
         mid[dims[0]] = val0 / ids.length;
@@ -142,7 +157,7 @@ MeshViewer.prototype._shrinkZone = function(zone)
     var self = this;  // for anonymous functions
 
     var shrinkFunc = function(mid) {
-        return function(id) { return self._shrinkNode(mid, nodes[id]['pos']); };
+        return function(id) { return self._shrinkNode(mid, [nodes[dims[0]][id], nodes[dims[1]][id]]); };
     }
     return ids.map(shrinkFunc(zone['mid']));
 }

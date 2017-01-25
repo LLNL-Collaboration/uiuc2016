@@ -43,7 +43,8 @@ var document = jsdom.jsdom(data);
 
 var viewer = new MeshViewer("meshdiv", document);
 // viewer.loadData("rz", testmesh, document);
-viewer.loadBlueprintData(blueprintmesh, document);
+// viewer.loadBlueprintData(blueprintmesh, document);
+viewer.loadData("rz", blueprintmesh, document);
 window.onresize = function() { viewer.updateViewBox(); }
 
 /* GET home page. */
