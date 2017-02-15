@@ -2,7 +2,7 @@ function websocket(connection, data)
 {
     // var wsproto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
     // connection = new WebSocket(wsproto + '//' + window.location.host + '/websocket');
-    connection = new WebSocket("ws://localhost:9000/mesh_phpserver")
+    connection = new WebSocket("ws://localhost:8080");
     connection.onopen = function (event) {
         $("#status_display").html("<font color=green>[status=success]socket connection</font>");
         connection.send("testmesh.json");

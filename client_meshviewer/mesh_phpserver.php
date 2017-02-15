@@ -1,7 +1,8 @@
+#!/usr/bin/php
 <?php
 set_time_limit(0);
 $address = "localhost";
-$port = 9000;
+$port = 8080;
 
 if (($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false) {
     echo "socket_create() failed: reason: " . socket_strerror(socket_last_error()) . "\n";
