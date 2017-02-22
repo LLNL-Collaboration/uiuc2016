@@ -3,8 +3,8 @@
 <meta charset="UTF-8">
 <title>Kull Visual Debugger</title>
 <link rel="stylesheet" type="text/css" href="meshviewer.css">
-<script type="text/javascript" src='jquery-3.1.1.min.js'></script>
-<script type='text/javascript' src='d3.min.js'></script>
+<script type="text/javascript" src='src/jquery-3.1.1.min.js'></script>
+<script type='text/javascript' src='src/d3.min.js'></script>
 <script type='text/javascript' src='meshviewer.js'></script>
 <script type='text/javascript' src='client.js'></script>
 </head>
@@ -14,12 +14,12 @@
 <script type="text/javascript">
 //<![CDATA[ 
 {
-	var data;
-	var connection;
-	websocket(connection, data);
-    var viewer = new MeshViewer("meshdiv");
-    viewer.loadData("rz", data);
-    window.onresize = function() { viewer.updateViewBox(); }
+	// var data = websocket();
+	// console.log(data);
+ //    var viewer = new MeshViewer("meshdiv");
+ //    viewer.loadData("rz", data);
+ //    window.onresize = function() { viewer.updateViewBox(); }
+ 		websocket();
 }
 //]]>  
 </script>

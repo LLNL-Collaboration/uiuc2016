@@ -11,31 +11,40 @@ class ws_server extends phpWebSocket{
 
 
   //Overridden process function from websocket.class.php
-  function process($user,$msg){
-    $c=0;
-  	$this->say("(user: ".$user->id.") msg> ".$msg);
-    //$this->say("< ".$msg);
+	function process($user,$msg){
+    	$c=0;
+  		$this->say("(user: ".$user->id.") msg> ".$msg);
+    	//$this->say("< ".$msg);
 	
-    switch($msg){
-	  case "ping" :  $this->send($user->socket,"pong"); break; //heartbeat frame reply with pong
-      case "hello" : $this->send($user->socket,"hello human");                       break;
-      case "name"  : $this->send($user->socket,"My Name is".php_uname("n") ); 		break;
-	  case "temp"  : $this->send($user->socket,"Temp. in NYC:".$this->getTemp() );   break;
-      case "date"  : $this->send($user->socket,"today is ".date("Y.m.d"));           break;
-      case "time"  : $this->send($user->socket,"server time is ".date("H:i:s"));     break;
-      case "thanks": $this->send($user->socket,"you're welcome");                    break;
-	  case "id" : 	$this->send($user->socket,"You are user: ".$user." \r\n");    break;
-	  case "users":  $list="User's List \r\n";
+    	switch($msg){
+	  		case "ping" :  $this->send($user->socket,"pong"); break; //heartbeat frame reply with pong
+      		case "hello" : $this->send($user->socket,"hello human");                       break;
+      		case "name"  : $this->send($user->socket,"My Name is".php_uname("n") ); 		break;
+	  		case "temp"  : $this->send($user->socket,"Temp. in NYC:".$this->getTemp() );   break;
+	    	case "date"  : $this->send($user->socket,"today is ".date("Y.m.d"));           break;
+	      	case "time"  : $this->send($user->socket,"server time is ".date("H:i:s"));     break;
+	      	case "thanks": $this->send($user->socket,"you're welcome");                    break;
+		  	case "id" : $this->send($user->socket,"You are user: ".$user." \r\n");    break;
+		  	case "users":  
+		  				$list="User's List \r\n";
 						foreach($this->users as $u)
 						   $list.="user #".++$c.". $u \r\n";
 						   
 						$this->send($user->socket,$list); 
-					 break;
+					 	break;
 					
-      case "bye"   : $this->send($user->socket,"bye");                               
+      		case "bye": 
+      					$this->send($user->socket,"bye");                               
 						$this->disconnect($user->socket);
 						break;
-      default      : $this->send($user->socket,$msg." not understood - ".date("H:i:s") );              break;
+			case "testmesh.json":
+						$data = json_decode(file_get_contents("../testmesh.json"), true);
+						$data = json_encode($data);
+						$this->send($user->socket, $data, strlen($data));
+						break;
+      		default: 
+      					$this->send($user->socket,$msg." not understood - ".date("H:i:s") );
+      					break;
     }
   }
   

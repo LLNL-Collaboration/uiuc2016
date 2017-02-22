@@ -1,8 +1,8 @@
-function websocket(connection, data)
+function websocket()
 {
     // var wsproto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
     // connection = new WebSocket(wsproto + '//' + window.location.host + '/websocket');
-    connection = new WebSocket("ws://localhost:8080");
+    var connection = new WebSocket("ws://localhost:8080");
     connection.onopen = function (event) {
         $("#status_display").html("<font color=green>[status=success]socket connection</font>");
         connection.send("testmesh.json");
@@ -12,8 +12,13 @@ function websocket(connection, data)
         // var data;
         try
         {
-            data=JSON.parse(msg.data);
+            var data=JSON.parse(msg.data);
             $("#status_display").html("<font color=green>[status=success]</font>");
+            
+            // console.log(data);
+            var viewer = new MeshViewer("meshdiv");
+            viewer.loadData("rz", data);
+            window.onresize = function() { viewer.updateViewBox(); }
         }
         catch(e)
         {
