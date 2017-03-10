@@ -2,23 +2,35 @@ function websocket()
 {
     // var wsproto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
     // connection = new WebSocket(wsproto + '//' + window.location.host + '/websocket');
-    var connection = new WebSocket("ws://localhost:8080");
+    var connection = new WebSocket("ws://localhost:8081/websocket");
+    var new_data;
+    var view_initialized = false;
+    var viewer;
     connection.onopen = function (event) {
         $("#status_display").html("<font color=green>[status=success]socket connection</font>");
-        connection.send("testmesh.json");
+        // connection.send("testmesh.json");
     }
     connection.onmessage = function (msg) 
     {
         // var data;
         try
         {
-            var data=JSON.parse(msg.data);
+            new_data=JSON.parse(msg.data);
             $("#status_display").html("<font color=green>[status=success]</font>");
-            
-            // console.log(data);
-            var viewer = new MeshViewer("meshdiv");
-            viewer.loadData("rz", data);
+            console.log(new_data);
+            //if this is an update
+            if ("update" in new_data) {
+                if(!view_initialized) {
+                    $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
+                }
+                viewer.updateData(new_data);
+            } else { // if this is not an update
+                viewer = new MeshViewer("meshdiv");
+                viewer.loadData("rz", new_data);
+                view_initialized = true;
+            }
             window.onresize = function() { viewer.updateViewBox(); }
+
         }
         catch(e)
         {

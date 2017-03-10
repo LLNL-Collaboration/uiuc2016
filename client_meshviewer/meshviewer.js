@@ -12,7 +12,9 @@ function MeshViewer(name)
     this._dims = [];
     this._nodes = {};
     this._zones = [];
+    this._fields = {};
 
+    this._views = {};
     this._viewBox = [];
     this._viewRes = 0;
     
@@ -31,14 +33,11 @@ MeshViewer.prototype.loadData = function(type, data)
         this._dims = ['z', 'r'];
     else
         this._dims = ['x', 'y'];
-
-    var self = this;  // for anonymous functions
     
-    // d3.json(file, function(error, data) {
-    self._nodes[self._dims[0]] = data.coordsets.coords.values[self._dims[0]];
-    self._nodes[self._dims[1]] = data.coordsets.coords.values[self._dims[1]];
+    this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
+    this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
 
-    zones = {}
+    var zones = {}
     var topo = data.topologies.mesh.elements.connectivity;
     for (var i=0; i<topo.length/4; i++) {
         var mesh = topo.slice(i*4, (i+1)*4);
@@ -47,20 +46,54 @@ MeshViewer.prototype.loadData = function(type, data)
         };
     }
 
-    self._zones = zones;
+    this._zones = zones;
 
-    self._setupMesh();
-    self._setupZones();
+    this._setupMesh();
+    this._setupZones();
+    this._computeView();
+    this._setupView();
+}
 
-    var views = {
-        "rMax": 8.9,
-        "rMin": 0.0,
-        "zMax": 45,
-        "zMin": 19
-    };
+MeshViewer.prototype.updateData = function(new_data)
+{
 
-    self._setupView(views);
-    // });
+    //update connectivity
+    if("conn_index" in new_data) {
+        var conn_index;
+        var zone_id;
+        var nids_id;
+        //new_data["conn_index"] and new_data["conn_value"] should have the same length.
+        for(var i = 0; i < new_data["conn_index"].length; i++) {
+            conn_index = new_data["conn_index"][i];
+            zone_id = conn_index/4;
+            nids_id = conn_index%4; 
+            if(this._zones[zone_id]["nids"][nids_id] !== new_data["conn_value"][i]) {
+                this._zones[zone_id]["nids"][nids_id] = new_data["conn_index"][i];
+            }
+        }
+    }
+    
+    //update zr/xy positions
+    var dims = this._dims;
+    for(var i = 0; i < dims.length; i++) {
+        var dim = dims[i];
+        if(dim in new_data) {
+            var p_index_arr =new_data[dim]["index"];
+            var p_value_arr = new_data[dim]["value"];
+            var length = p_index_arr.length;
+            
+            for(var j = 0; j < length; j++) {
+                if(this._nodes[dim][p_index_arr[j]] !== p_value_arr[j]) {
+                    this._nodes[dim][p_index_arr[j]] = p_value_arr[j];
+                }
+            }    
+        }    
+    }
+    this._removeMesh();
+    this._setupMesh();
+    this._setupZones();
+    this._computeView();
+    this._setupView();
 }
 
 MeshViewer.prototype.updateViewBox = function()
@@ -158,6 +191,11 @@ MeshViewer.prototype._setupZoom = function()
         .on('zoom', function() { self._updateTransform(); });
 }
 
+MeshViewer.prototype._removeMesh = function() 
+{
+    this._svgElem.remove();
+}
+
 MeshViewer.prototype._setupMesh = function()
 {
     this._divElem = d3.select('#' + this._name);
@@ -189,14 +227,49 @@ MeshViewer.prototype._setupZones = function()
         .on('mouseout', function() { self._hideToolTip(); });
 }
 
-MeshViewer.prototype._setupView = function(view)
+MeshViewer.prototype._findMax = function(a)
+{
+    var m = -Infinity, i = 0, n = a.length;
+
+    for (; i != n; ++i) {
+        if (a[i] > m) {
+            m = a[i];
+        }
+    }
+    return m;   
+}
+
+MeshViewer.prototype._findMin = function(a)
+{
+    var m = Infinity, i = 0, n = a.length;
+
+    for (; i != n; ++i) {
+        if (a[i] < m && a[i] >= 0) {
+            m = a[i];
+        }
+    }
+    return m;   
+}
+
+//get the newest views based on current data.
+MeshViewer.prototype._computeView = function()
 {
     var dims = this._dims;
-    
-    this._viewBox = [view[dims[0] + 'Min'],
-                    -view[dims[1] + 'Max'],  // flip svg so that y=0 is at bottom
-                     view[dims[0] + 'Max'] - view[dims[0] + 'Min'],
-                     view[dims[1] + 'Max'] - view[dims[1] + 'Min']];
+
+    this._views[dims[1]+"Max"] = this._findMax(this._nodes[dims[1]]);
+    this._views[dims[1]+"Min"] = this._findMin(this._nodes[dims[1]]);
+    this._views[dims[0]+"Max"] = this._findMax(this._nodes[dims[0]]);
+    this._views[dims[0]+"Min"] = this._findMin(this._nodes[dims[0]]);
+}
+
+MeshViewer.prototype._setupView = function()
+{
+    var dims = this._dims;
+    console.log(this._views);
+    this._viewBox = [this._views[dims[0] + 'Min'],
+                    -this._views[dims[1] + 'Max'],  // flip svg so that y=0 is at bottom
+                     this._views[dims[0] + 'Max'] - this._views[dims[0] + 'Min'],
+                     this._views[dims[1] + 'Max'] - this._views[dims[1] + 'Min']];
     
     this.updateViewBox();
 
