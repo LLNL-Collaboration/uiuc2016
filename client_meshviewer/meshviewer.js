@@ -11,8 +11,8 @@ function MeshViewer(name)
 
     this._dims = [];
     this._nodes = {};
-    this._zones = [];
-    this._fields = {};
+    this._zones = {};
+    this._fields = [];
 
     this._views = {};
     this._viewBox = [];
@@ -37,17 +37,16 @@ MeshViewer.prototype.loadData = function(type, data)
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
 
-    var zones = {}
     var topo = data.topologies.mesh.elements.connectivity;
     for (var i=0; i<topo.length/4; i++) {
         var mesh = topo.slice(i*4, (i+1)*4);
-        zones[i] = {
+        this._zones[i] = {
             'nids': mesh
         };
+        this._fields[i] = i;
     }
 
-    this._zones = zones;
-
+    this._computeRGB();
     this._setupMesh();
     this._setupZones();
     this._computeView();
@@ -222,9 +221,23 @@ MeshViewer.prototype._setupZones = function()
         .attr('id', function(id) { return self._name + '_z_' + id; })
         .attr('class', 'zoneClass')
         .attr('d', function(id) { return self._createPath(id); })
-        .on('mouseover', function() { self._showToolTip(); })
+        .style('fill', function(id) {return self._fields[id];})
+        .on('mouseover', function() { 
+            self._showToolTip();
+            d3.select(this)
+              .style('fill','red')
+              .style('stroke', 'black')
+              .style('stroke-width', '0.05')
+              .style('opacity', 100);
+         })
         .on('mousemove', function(id) { self._updateToolTip(id); })
-        .on('mouseout', function() { self._hideToolTip(); });
+        .on('mouseout', function(id) { 
+            self._hideToolTip(); 
+            d3.select(this)
+              .style('fill', self._fields[id])
+              .style('stroke', '')
+              .style('stroke-width', '')
+        });
 }
 
 MeshViewer.prototype._findMax = function(a)
@@ -296,9 +309,18 @@ MeshViewer.prototype._updateToolTip = function(id)
     this._toolTip.text('Zone: ' + id)
         .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
         .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
+
 }
 
 MeshViewer.prototype._hideToolTip = function()
 {
     this._toolTip.transition().style('opacity', 0);
+}
+
+MeshViewer.prototype._computeRGB = function()
+{
+    for(var i = 0; i < this._fields.length; i++) {
+        this._fields[i] = randomColor();
+    }
+    // console.log(this._fields);
 }
