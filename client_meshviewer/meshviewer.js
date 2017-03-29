@@ -13,6 +13,7 @@ function MeshViewer(name)
     this._nodes = {};
     this._zones = {};
     this._fields = [];
+    this._scale = {};
 
     this._views = {};
     this._viewBox = [];
@@ -34,9 +35,11 @@ MeshViewer.prototype.loadData = function(type, data)
     else
         this._dims = ['x', 'y'];
     
+    //load r/z arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
 
+    //load connectivity array
     var topo = data.topologies.mesh.elements.connectivity;
     for (var i=0; i<topo.length/4; i++) {
         var mesh = topo.slice(i*4, (i+1)*4);
@@ -46,14 +49,47 @@ MeshViewer.prototype.loadData = function(type, data)
         this._fields[i] = i;
     }
 
+    //load fields array
+    // this._fields = data.fields.braid.values;
+
+    var colormap = d3.scale.linear()
+                    .domain([0, this._fields.length])
+                    .range(["white","#4169e1"]);
+    this._scale = colormap;
+
     this._computeRGB();
     this._setupMesh();
     this._setupZones();
     this._computeView();
     this._setupView();
 }
+MeshViewer.prototype.updateDataNormal = function(new_data)
+{
+    //update zones using connectivity array
+    var mesh;
+    var topo = new_data["conn_value"];
+    for(var i = 0; i < topo.length/4; i++) {
+        mesh = topo.slice(i*4, (i+1)*4);
+        this._zones[i]["nids"] = mesh;
+    }
 
-MeshViewer.prototype.updateData = function(new_data)
+    //update rz positions using rz arrays
+    var dims = this._dims;
+    this._nodes[dims[0]] = new_data[dims[0]]["value"];
+    this._nodes[dims[1]] = new_data[dims[1]]["value"];
+
+    //update fields using field array
+    this._fields = new_data["field_value"];
+
+    this._computeRGB();
+    this._removeMesh();
+    this._setupMesh();
+    this._setupZones();
+    this._computeView();
+    this._setupView();
+}
+
+MeshViewer.prototype.updateDataCompressed = function(new_data)
 {
 
     //update connectivity
@@ -320,7 +356,7 @@ MeshViewer.prototype._hideToolTip = function()
 MeshViewer.prototype._computeRGB = function()
 {
     for(var i = 0; i < this._fields.length; i++) {
-        this._fields[i] = randomColor();
+        this._fields[i] = this._scale(this._fields[i]);
     }
     // console.log(this._fields);
 }

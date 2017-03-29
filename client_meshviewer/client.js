@@ -19,11 +19,16 @@ function websocket()
             $("#status_display").html("<font color=green>[status=success]</font>");
             console.log(new_data);
             //if this is an update
-            if ("update" in new_data) {
+            if ("normal_update" in new_data) {
                 if(!view_initialized) {
                     $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
                 }
-                viewer.updateData(new_data);
+                viewer.updateDataNormal(new_data);
+            } else if("compressed_update" in new_data){
+                if(!view_initialized) {
+                    $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
+                }
+                viewer.updateDataCompressed(new_data);
             } else { // if this is not an update
                 viewer = new MeshViewer("meshdiv");
                 viewer.loadData("rz", new_data);
