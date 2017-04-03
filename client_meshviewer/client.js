@@ -1,14 +1,14 @@
+/*
+    The C++ server is not configured to receive data from its client. 
+*/
 function websocket()
 {
-    // var wsproto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-    // connection = new WebSocket(wsproto + '//' + window.location.host + '/websocket');
     var connection = new WebSocket("ws://localhost:8081/websocket");
     var new_data;
     var view_initialized = false;
     var viewer;
     connection.onopen = function (event) {
         $("#status_display").html("<font color=green>[status=success]socket connection</font>");
-        // connection.send("testmesh.json");
     }
     connection.onmessage = function (msg) 
     {
@@ -25,13 +25,15 @@ function websocket()
                 }
                 viewer.updateDataNormal(new_data);
             } else if("compressed_update" in new_data){
+                //compressed updates are no longer maintained
                 if(!view_initialized) {
                     $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
                 }
-                viewer.updateDataCompressed(new_data);
+                console.log("[status=error] compressed_update not supported");
+                // viewer.updateDataCompressed(new_data);
             } else { // if this is not an update
                 viewer = new MeshViewer("meshdiv");
-                viewer.loadData("rz", new_data);
+                viewer.loadData(new_data);
                 view_initialized = true;
             }
             window.onresize = function() { viewer.updateViewBox(); }
@@ -39,8 +41,10 @@ function websocket()
         }
         catch(e)
         {
-             //caught an error in the above code, simply display to the status element
+            //caught an error in the above code, simply display to the status element
             $("#status_display").html("<font color=red>[status=error] " + e + "</font>");
+            //log this error for debuging purpose
+            console.log(e);
         }
     }
       

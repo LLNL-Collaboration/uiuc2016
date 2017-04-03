@@ -27,15 +27,12 @@ function MeshViewer(name)
 }
 
 /******************** public functions ********************/
-
-MeshViewer.prototype.loadData = function(type, data)
+//MeshViewer only supports unstructured mesh with xy or rz coordinates
+MeshViewer.prototype.loadData = function(data)
 {
-    if (type === 'rz')
-        this._dims = ['z', 'r'];
-    else
-        this._dims = ['x', 'y'];
-    
-    //load r/z arrays
+    this._dims = Object.keys(data.coordsets.coords.values);
+
+    //Load coordinate arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
 
@@ -46,18 +43,13 @@ MeshViewer.prototype.loadData = function(type, data)
         this._zones[i] = {
             'nids': mesh
         };
-        this._fields[i] = i;
     }
 
     //load fields array
-    // this._fields = data.fields.braid.values;
+    this._fields = data.fields.braid.values;
 
-    var colormap = d3.scale.linear()
-                    .domain([0, this._fields.length])
-                    .range(["white","#4169e1"]);
-    this._scale = colormap;
-
-    this._computeRGB();
+    this._setupColorMap();
+    this._computeColor();
     this._setupMesh();
     this._setupZones();
     this._computeView();
@@ -81,7 +73,7 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
     //update fields using field array
     this._fields = new_data["field_value"];
 
-    this._computeRGB();
+    this._computeColor();
     this._removeMesh();
     this._setupMesh();
     this._setupZones();
@@ -89,47 +81,48 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
     this._setupView();
 }
 
-MeshViewer.prototype.updateDataCompressed = function(new_data)
-{
+//This function is not maintained
+// MeshViewer.prototype.updateDataCompressed = function(new_data)
+// {
 
-    //update connectivity
-    if("conn_index" in new_data) {
-        var conn_index;
-        var zone_id;
-        var nids_id;
-        //new_data["conn_index"] and new_data["conn_value"] should have the same length.
-        for(var i = 0; i < new_data["conn_index"].length; i++) {
-            conn_index = new_data["conn_index"][i];
-            zone_id = conn_index/4;
-            nids_id = conn_index%4; 
-            if(this._zones[zone_id]["nids"][nids_id] !== new_data["conn_value"][i]) {
-                this._zones[zone_id]["nids"][nids_id] = new_data["conn_index"][i];
-            }
-        }
-    }
+//     //update connectivity
+//     if("conn_index" in new_data) {
+//         var conn_index;
+//         var zone_id;
+//         var nids_id;
+//         //new_data["conn_index"] and new_data["conn_value"] should have the same length.
+//         for(var i = 0; i < new_data["conn_index"].length; i++) {
+//             conn_index = new_data["conn_index"][i];
+//             zone_id = conn_index/4;
+//             nids_id = conn_index%4; 
+//             if(this._zones[zone_id]["nids"][nids_id] !== new_data["conn_value"][i]) {
+//                 this._zones[zone_id]["nids"][nids_id] = new_data["conn_index"][i];
+//             }
+//         }
+//     }
     
-    //update zr/xy positions
-    var dims = this._dims;
-    for(var i = 0; i < dims.length; i++) {
-        var dim = dims[i];
-        if(dim in new_data) {
-            var p_index_arr =new_data[dim]["index"];
-            var p_value_arr = new_data[dim]["value"];
-            var length = p_index_arr.length;
+//     //update zr/xy positions
+//     var dims = this._dims;
+//     for(var i = 0; i < dims.length; i++) {
+//         var dim = dims[i];
+//         if(dim in new_data) {
+//             var p_index_arr =new_data[dim]["index"];
+//             var p_value_arr = new_data[dim]["value"];
+//             var length = p_index_arr.length;
             
-            for(var j = 0; j < length; j++) {
-                if(this._nodes[dim][p_index_arr[j]] !== p_value_arr[j]) {
-                    this._nodes[dim][p_index_arr[j]] = p_value_arr[j];
-                }
-            }    
-        }    
-    }
-    this._removeMesh();
-    this._setupMesh();
-    this._setupZones();
-    this._computeView();
-    this._setupView();
-}
+//             for(var j = 0; j < length; j++) {
+//                 if(this._nodes[dim][p_index_arr[j]] !== p_value_arr[j]) {
+//                     this._nodes[dim][p_index_arr[j]] = p_value_arr[j];
+//                 }
+//             }    
+//         }    
+//     }
+//     this._removeMesh();
+//     this._setupMesh();
+//     this._setupZones();
+//     this._computeView();
+//     this._setupView();
+// }
 
 MeshViewer.prototype.updateViewBox = function()
 {
@@ -215,6 +208,15 @@ MeshViewer.prototype._updateTransform = function()
 
     this._meshElem.attr('transform', transStr + scaleStr);
 }
+MeshViewer.prototype._setupColorMap = function ()
+{
+    var min_val = this._findMin(this._fields);
+    var max_val = this._findMax(this._fields);
+    var colormap = d3.scale.linear()
+                .domain([ min_val, (min_val+max_val)/2.0, max_val])
+                .range(["#FA8383","#9DD3CC","#FFE4B3"]);
+    this._scale = colormap;
+}
 
 MeshViewer.prototype._setupZoom = function()
 {
@@ -291,9 +293,15 @@ MeshViewer.prototype._findMax = function(a)
 MeshViewer.prototype._findMin = function(a)
 {
     var m = Infinity, i = 0, n = a.length;
-
+    // This part of code is used for rendering blueprint data converted from 
+    // Ming's format. To handle missing values in the data, I put -1 to fill. 
+    // for (; i != n; ++i) {
+    //     if (a[i] < m && a[i] >= 0) {
+    //         m = a[i];
+    //     }
+    // }
     for (; i != n; ++i) {
-        if (a[i] < m && a[i] >= 0) {
+        if (a[i] < m) {
             m = a[i];
         }
     }
@@ -353,10 +361,9 @@ MeshViewer.prototype._hideToolTip = function()
     this._toolTip.transition().style('opacity', 0);
 }
 
-MeshViewer.prototype._computeRGB = function()
+MeshViewer.prototype._computeColor = function()
 {
     for(var i = 0; i < this._fields.length; i++) {
         this._fields[i] = this._scale(this._fields[i]);
     }
-    // console.log(this._fields);
 }
