@@ -43,20 +43,28 @@ def convert(inputfile, outputfile):
 		ordered_data[int(key)] = value
 
 	#Loop through ordered data
-
+	coord_map = {}
+	map_value = 0;
 	for key, value in ordered_data.items():
-		if (int(key) - prev_key) > 1:
-				num_to_fill = int(key) - prev_key - 1
-				r.extend([-1]*num_to_fill)
-				z.extend([-1]*num_to_fill)
-		elif (int(key) - prev_key) < 1:
-			print 'Incorrect node index'	
-		r.append(value["pos"]["r"] - 5.0)
+		key = int(key)
+		# if (key - prev_key) > 1:
+				# num_to_fill = key - prev_key - 1
+				# r.extend([-1]*num_to_fill)
+				# z.extend([-1]*num_to_fill)
+				# map_value =  map_value + num_to_fill
+		coord_map[key] = map_value
+		map_value = map_value + 1
+		# elif (key - prev_key) < 1:
+		# 	print 'Incorrect node index'	
+		r.append(value["pos"]["r"])
 		z.append(value["pos"]["z"])
-		prev_key = int(key) 
+		# prev_key = key
 
-	blueprint_dict["coordsets"]["coords"]["values"]["r"] = r
+
+
+	
 	blueprint_dict["coordsets"]["coords"]["values"]["z"] = z
+	blueprint_dict["coordsets"]["coords"]["values"]["r"] = r
 
 	#Collect connectivities
 	c = []
@@ -67,11 +75,16 @@ def convert(inputfile, outputfile):
 	for key, value in ordered_zones.items():
 		c.extend(value["nids"])
 
-	blueprint_dict["topologies"]["mesh"]["elements"]["connectivity"] = c 
+	mapped_c = []
+	for elem in c:
+		# print(elem)
+		mapped_c.append(coord_map[elem])
+
+	blueprint_dict["topologies"]["mesh"]["elements"]["connectivity"] = mapped_c 
 
 	#Collect fields value
 	v = range(len(ordered_zones))
-	blueprint_dict["fields"]["braid"]["values"] = v
+	blueprint_dict["fields"]["braid"]["values"] = [float(elem) for elem in v]
 
 	with open(outputfile,"wt") as out:
 		json.dump(blueprint_dict, out, indent=4)

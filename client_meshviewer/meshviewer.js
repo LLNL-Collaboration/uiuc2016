@@ -31,6 +31,14 @@ function MeshViewer(name)
 MeshViewer.prototype.loadData = function(data)
 {
     this._dims = Object.keys(data.coordsets.coords.values);
+    //check the data to make sure coordinates are not inverted
+    if(this._dims[0] == 'r') {
+        this._dims[0] = 'z';
+        this._dims[1] = 'r';
+    } else if (this._dims[0] == 'y') {
+        this._dims[0] = 'x'
+        this._dims[1] = 'y'
+    }
 
     //Load coordinate arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
