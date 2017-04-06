@@ -8,16 +8,22 @@ function MeshViewer(name)
     this._svgElem = 0;
     this._meshElem = 0;
     this._zonesElem = 0;
+    this._vertexElem = 0;
 
     this._dims = [];
     this._nodes = {};
     this._zones = {};
-    this._fields = [];
+    this._fields = {};
     this._scale = {};
+    this._vertices = {};
+    this._radius = 0;
 
     this._views = {};
     this._viewBox = [];
     this._viewRes = 0;
+    this._fieldTypes = [];
+    this._fieldTypeActive = 0;
+    this._fieldColor = {};
     
     this._setupZoom();
     this._setupToolTip();
@@ -53,16 +59,32 @@ MeshViewer.prototype.loadData = function(data)
         };
     }
 
+    for (var i = 0; i < this._nodes[this._dims[0]].length; i++) {
+        var vertex = {};
+        vertex[this._dims[0]] = this._nodes[this._dims[0]][i];
+        vertex[this._dims[1]] = this._nodes[this._dims[1]][i];
+        this._vertices[i] = vertex;
+    }
     //load fields array
-    this._fields = data.fields.braid.values;
+    if("braid" in data.fields) {
+        this._fields["braid"] = data.fields.braid.values;  
+        this._fieldTypes.push("braid");
+    }
+    if("radial" in data.fields) {
+        this._fields["radial"] = data.fields.radial.values;
+        this._fieldTypes.push("radial");
+    }
+    
+    //set the default view type
+    this._fieldTypeActive = this._fieldTypes[0];
 
     this._setupColorMap();
     this._computeColor();
-    this._setupMesh();
-    this._setupZones();
+    this._setupActiveViewMesh();
     this._computeView();
     this._setupView();
 }
+
 MeshViewer.prototype.updateDataNormal = function(new_data)
 {
     //update zones using connectivity array
@@ -79,58 +101,17 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
     this._nodes[dims[1]] = new_data[dims[1]]["value"];
 
     //update fields using field array
-    this._fields = new_data["field_value"];
+    for(var i = 0 ; i < this._fieldTypes.length; i++) {
+        this._fields[this._fieldTypes[i]] = new_data["field_value"][this._fieldTypes[i]];
+    }
 
-    this._computeColor();
     this._removeMesh();
-    this._setupMesh();
-    this._setupZones();
+    this._setupColorMap();
+    this._computeColor();
+    this._setupActiveViewMesh();
     this._computeView();
     this._setupView();
 }
-
-//This function is not maintained
-// MeshViewer.prototype.updateDataCompressed = function(new_data)
-// {
-
-//     //update connectivity
-//     if("conn_index" in new_data) {
-//         var conn_index;
-//         var zone_id;
-//         var nids_id;
-//         //new_data["conn_index"] and new_data["conn_value"] should have the same length.
-//         for(var i = 0; i < new_data["conn_index"].length; i++) {
-//             conn_index = new_data["conn_index"][i];
-//             zone_id = conn_index/4;
-//             nids_id = conn_index%4; 
-//             if(this._zones[zone_id]["nids"][nids_id] !== new_data["conn_value"][i]) {
-//                 this._zones[zone_id]["nids"][nids_id] = new_data["conn_index"][i];
-//             }
-//         }
-//     }
-    
-//     //update zr/xy positions
-//     var dims = this._dims;
-//     for(var i = 0; i < dims.length; i++) {
-//         var dim = dims[i];
-//         if(dim in new_data) {
-//             var p_index_arr =new_data[dim]["index"];
-//             var p_value_arr = new_data[dim]["value"];
-//             var length = p_index_arr.length;
-            
-//             for(var j = 0; j < length; j++) {
-//                 if(this._nodes[dim][p_index_arr[j]] !== p_value_arr[j]) {
-//                     this._nodes[dim][p_index_arr[j]] = p_value_arr[j];
-//                 }
-//             }    
-//         }    
-//     }
-//     this._removeMesh();
-//     this._setupMesh();
-//     this._setupZones();
-//     this._computeView();
-//     this._setupView();
-// }
 
 MeshViewer.prototype.updateViewBox = function()
 {
@@ -156,6 +137,29 @@ MeshViewer.prototype.updateViewBox = function()
         vbox[3] = rect[1] * this._viewRes;
     }
     this._svgElem.attr('viewBox', vbox.join(' '));
+}
+
+MeshViewer.prototype.swtichFieldType = function(targetfieldType)
+{
+    if(this._inArray(targetfieldType, this._fieldTypes)) {
+        this._fieldTypeActive = targetfieldType;
+        this._removeMesh();
+        this._setupActiveViewMesh();
+        this._computeView();
+        this._setupView();
+    } else {
+        throw new Error("Target view type is currently not supported.")
+    }
+}
+
+MeshViewer.prototype.getFieldTypes = function() 
+{
+    return this._fieldTypes;
+}
+
+MeshViewer.prototype.getActiveFieldType = function()
+{
+    return this._fieldTypeActive;
 }
 
 /******************** protected/private functions ********************/
@@ -216,14 +220,29 @@ MeshViewer.prototype._updateTransform = function()
 
     this._meshElem.attr('transform', transStr + scaleStr);
 }
+
 MeshViewer.prototype._setupColorMap = function ()
 {
-    var min_val = this._findMin(this._fields);
-    var max_val = this._findMax(this._fields);
-    var colormap = d3.scale.linear()
-                .domain([ min_val, (min_val+max_val)/2.0, max_val])
-                .range(["#FA8383","#9DD3CC","#FFE4B3"]);
-    this._scale = colormap;
+    for(var i = 0; i < this._fieldTypes.length; i++) {
+        var fieldType = this._fieldTypes[i];
+        var min_val = this._findMin(this._fields[fieldType]);
+        var max_val = this._findMax(this._fields[fieldType]);
+        var colormap = d3.scale.linear()
+                    .domain([ min_val, (min_val+max_val)/2.0, max_val])
+                    .range(["#FA8383","#9DD3CC","#FFE4B3"]);
+        this._scale[fieldType] = colormap;
+    }
+}
+
+MeshViewer.prototype._computeColor = function()
+{
+    for(var i = 0; i < this._fieldTypes.length; i++) {
+        var fieldType = this._fieldTypes[i];
+        this._fieldColor[fieldType] = []
+        for(var j = 0; j < this._fields[fieldType].length; j++) {
+            this._fieldColor[fieldType].push(this._scale[fieldType](this._fields[fieldType][j]));
+        }        
+    }
 }
 
 MeshViewer.prototype._setupZoom = function()
@@ -236,12 +255,9 @@ MeshViewer.prototype._setupZoom = function()
         .on('zoom', function() { self._updateTransform(); });
 }
 
-MeshViewer.prototype._removeMesh = function() 
-{
-    this._svgElem.remove();
-}
 
-MeshViewer.prototype._setupMesh = function()
+
+MeshViewer.prototype._setupActiveViewMesh = function()
 {
     this._divElem = d3.select('#' + this._name);
     
@@ -252,9 +268,24 @@ MeshViewer.prototype._setupMesh = function()
     
     this._meshElem = this._svgElem.append('g')
         .attr('id', this._name + '_mesh');
-    
-    this._zonesElem = this._meshElem.append('g')
-        .attr('id', this._name + '_zones')
+
+
+    if(this._fieldTypeActive === "braid") {
+        this._vertexElem = this._meshElem.append('g')
+            .attr('id', this._name + '_vertices');
+        this._setupRadius();
+        this._setupVertices();
+    }
+    else if(this._fieldTypeActive === "radial") {
+        this._zonesElem = this._meshElem.append('g')
+            .attr('id', this._name + '_zones');
+        this._setupZones();
+    }
+}
+
+MeshViewer.prototype._removeMesh = function() 
+{
+    this._svgElem.remove();
 }
 
 MeshViewer.prototype._setupZones = function()
@@ -267,7 +298,7 @@ MeshViewer.prototype._setupZones = function()
         .attr('id', function(id) { return self._name + '_z_' + id; })
         .attr('class', 'zoneClass')
         .attr('d', function(id) { return self._createPath(id); })
-        .style('fill', function(id) {return self._fields[id];})
+        .style('fill', function(id) {return self._fieldColor[self._fieldTypeActive][id];})
         .on('mouseover', function() { 
             self._showToolTip();
             d3.select(this)
@@ -280,41 +311,43 @@ MeshViewer.prototype._setupZones = function()
         .on('mouseout', function(id) { 
             self._hideToolTip(); 
             d3.select(this)
-              .style('fill', self._fields[id])
+              .style('fill', self._fieldColor[self._fieldTypeActive][id])
               .style('stroke', '')
               .style('stroke-width', '')
         });
 }
 
-MeshViewer.prototype._findMax = function(a)
+MeshViewer.prototype._setupVertices = function()
 {
-    var m = -Infinity, i = 0, n = a.length;
+    var self = this;
 
-    for (; i != n; ++i) {
-        if (a[i] > m) {
-            m = a[i];
-        }
-    }
-    return m;   
+    this._vertexElem.selectAll('.vertex')
+        .data(Object.keys(this._vertices)).enter()
+        .append('circle')
+        .attr('id', function(id) { return self._name + '_z_' + id; })
+        .attr('class', 'vertexClass')
+        .attr('cx', function(id) { return self._vertices[id][self._dims[0]]; })
+        .attr('cy', function(id) { return self._vertices[id][self._dims[1]]; })
+        .attr('r', function() { return self._radius; })
+        .style('fill', function(id) {return self._fieldColor[self._fieldTypeActive][id];})
+        .on('mouseover', function() { 
+            self._showToolTip();
+            d3.select(this)
+              .style('fill','red')
+              .style('stroke', 'black')
+              .style('stroke-width', '0.05')
+              .style('opacity', 100);
+         })
+        .on('mousemove', function(id) { self._updateToolTip(id); })
+        .on('mouseout', function(id) { 
+            self._hideToolTip(); 
+            d3.select(this)
+              .style('fill', self._fieldColor[self._fieldTypeActive][id])
+              .style('stroke', '')
+              .style('stroke-width', '')
+        });        
 }
 
-MeshViewer.prototype._findMin = function(a)
-{
-    var m = Infinity, i = 0, n = a.length;
-    // This part of code is used for rendering blueprint data converted from 
-    // Ming's format. To handle missing values in the data, I put -1 to fill. 
-    // for (; i != n; ++i) {
-    //     if (a[i] < m && a[i] >= 0) {
-    //         m = a[i];
-    //     }
-    // }
-    for (; i != n; ++i) {
-        if (a[i] < m) {
-            m = a[i];
-        }
-    }
-    return m;   
-}
 
 //get the newest views based on current data.
 MeshViewer.prototype._computeView = function()
@@ -358,7 +391,14 @@ MeshViewer.prototype._updateToolTip = function(id)
 {
     var rect = this._toolTip[0][0].getBoundingClientRect();
     
-    this._toolTip.text('Zone: ' + id)
+    var unitType;
+    if(this._fieldTypeActive === "braid") {
+        unitType = "Vertex";
+    } else {
+        unitType = "Zone";
+    }
+
+    this._toolTip.text(unitType + ': ' + id)
         .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
         .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
 
@@ -369,9 +409,53 @@ MeshViewer.prototype._hideToolTip = function()
     this._toolTip.transition().style('opacity', 0);
 }
 
-MeshViewer.prototype._computeColor = function()
+MeshViewer.prototype._setupRadius = function ()
 {
-    for(var i = 0; i < this._fields.length; i++) {
-        this._fields[i] = this._scale(this._fields[i]);
+    var sorted_pos0 = this._nodes[this._dims[0]].sort(function(a,b){return a - b});
+    var sorted_pos1 = this._nodes[this._dims[1]].sort(function(a,b){return a - b});
+    this._radius = Math.min(this._findSmallestDiff(sorted_pos0)/2, this._findSmallestDiff(sorted_pos1)/2);
+}
+
+MeshViewer.prototype._findSmallestDiff = function (pos_arr)
+{
+    var result;
+    for(var i = 1; i < pos_arr.length; i++) {
+        if(pos_arr[i] != pos_arr[0]) {
+            result = pos_arr[i] - pos_arr[0];
+            break;
+        }
     }
+    return result;
+}
+
+MeshViewer.prototype._findMax = function(a)
+{
+    var m = -Infinity, i = 0, n = a.length;
+
+    for (; i != n; ++i) {
+        if (a[i] > m) {
+            m = a[i];
+        }
+    }
+    return m;   
+}
+
+MeshViewer.prototype._findMin = function(a)
+{
+    var m = Infinity, i = 0, n = a.length;
+    for (; i != n; ++i) {
+        if (a[i] < m) {
+            m = a[i];
+        }
+    }
+    return m;   
+}
+
+MeshViewer.prototype._inArray = function(needle, haystack) {
+    var length = haystack.length;
+    for (var i = 0; i < length; i++) {
+        if (haystack[i] === needle)
+            return true;
+    }
+    return false;
 }
