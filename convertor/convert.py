@@ -29,7 +29,7 @@ def convert(inputfile, outputfile):
 	blueprint_dict["fields"] = {}
 	blueprint_dict["fields"]["braid"] = {}
 	blueprint_dict["fields"]["braid"]["topology"] = "mesh"
-	blueprint_dict["fields"]["braid"]["association"] = "vertex"
+	blueprint_dict["fields"]["braid"]["association"] = "element"
 	blueprint_dict["fields"]["braid"]["type"] = "scalar"
 	blueprint_dict["fields"]["braid"]["values"] = []
 	#Collect r and z from testmesh.json
@@ -47,18 +47,10 @@ def convert(inputfile, outputfile):
 	map_value = 0;
 	for key, value in ordered_data.items():
 		key = int(key)
-		# if (key - prev_key) > 1:
-				# num_to_fill = key - prev_key - 1
-				# r.extend([-1]*num_to_fill)
-				# z.extend([-1]*num_to_fill)
-				# map_value =  map_value + num_to_fill
 		coord_map[key] = map_value
 		map_value = map_value + 1
-		# elif (key - prev_key) < 1:
-		# 	print 'Incorrect node index'	
 		r.append(value["pos"]["r"])
 		z.append(value["pos"]["z"])
-		# prev_key = key
 
 
 

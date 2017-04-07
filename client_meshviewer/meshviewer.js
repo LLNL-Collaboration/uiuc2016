@@ -24,6 +24,7 @@ function MeshViewer(name)
     this._fieldTypes = [];
     this._fieldTypeActive = 0;
     this._fieldColor = {};
+    this._fieldAssoc = {};
     
     this._setupZoom();
     this._setupToolTip();
@@ -66,17 +67,21 @@ MeshViewer.prototype.loadData = function(data)
         this._vertices[i] = vertex;
     }
     //load fields array
-    if("braid" in data.fields) {
-        this._fields["braid"] = data.fields.braid.values;  
-        this._fieldTypes.push("braid");
-    }
-    if("radial" in data.fields) {
-        this._fields["radial"] = data.fields.radial.values;
-        this._fieldTypes.push("radial");
-    }
-    
+    this._fields = data.fields;
+
+    //this should sort fields types in order: braid, radial, vel
+    this._fieldTypes = Object.keys(this._fields).sort();
+
     //set the default view type
     this._fieldTypeActive = this._fieldTypes[0];
+
+    //store which field types are associated with elements, or vertex
+    this._fieldAssoc['element'] = [];
+    this._fieldAssoc['vertex'] = [];
+    for(var i = 0; i < this._fieldTypes.length; i++) {
+        var fieldType = this._fieldTypes[i];
+        this._fieldAssoc[this._fields[fieldType]["association"]].push(fieldType);
+    }
 
     this._setupColorMap();
     this._computeColor();
@@ -97,13 +102,11 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
 
     //update rz positions using rz arrays
     var dims = this._dims;
-    this._nodes[dims[0]] = new_data[dims[0]]["value"];
-    this._nodes[dims[1]] = new_data[dims[1]]["value"];
+    this._nodes[dims[0]] = new_data[dims[0]];
+    this._nodes[dims[1]] = new_data[dims[1]];
 
     //update fields using field array
-    for(var i = 0 ; i < this._fieldTypes.length; i++) {
-        this._fields[this._fieldTypes[i]] = new_data["field_value"][this._fieldTypes[i]];
-    }
+    this._fields = new_data.fields;
 
     this._removeMesh();
     this._setupColorMap();
@@ -225,8 +228,12 @@ MeshViewer.prototype._setupColorMap = function ()
 {
     for(var i = 0; i < this._fieldTypes.length; i++) {
         var fieldType = this._fieldTypes[i];
-        var min_val = this._findMin(this._fields[fieldType]);
-        var max_val = this._findMax(this._fields[fieldType]);
+        if(fieldType === "vel") {
+            //field type for vel is not supported
+            continue;
+        }
+        var min_val = this._findMin(this._fields[fieldType]["values"]);
+        var max_val = this._findMax(this._fields[fieldType]["values"]);
         var colormap = d3.scale.linear()
                     .domain([ min_val, (min_val+max_val)/2.0, max_val])
                     .range(["#FA8383","#9DD3CC","#FFE4B3"]);
@@ -238,9 +245,13 @@ MeshViewer.prototype._computeColor = function()
 {
     for(var i = 0; i < this._fieldTypes.length; i++) {
         var fieldType = this._fieldTypes[i];
+        if(fieldType === "vel") {
+            //field type for vel is not supported
+            continue;
+        }
         this._fieldColor[fieldType] = []
-        for(var j = 0; j < this._fields[fieldType].length; j++) {
-            this._fieldColor[fieldType].push(this._scale[fieldType](this._fields[fieldType][j]));
+        for(var j = 0; j < this._fields[fieldType]["values"].length; j++) {
+            this._fieldColor[fieldType].push(this._scale[fieldType](this._fields[fieldType]["values"][j]));
         }        
     }
 }
@@ -269,17 +280,17 @@ MeshViewer.prototype._setupActiveViewMesh = function()
     this._meshElem = this._svgElem.append('g')
         .attr('id', this._name + '_mesh');
 
+    //render element_centered view
+    if(this._inArray(this._fieldTypeActive, this._fieldAssoc["element"])) {
+        this._zonesElem = this._meshElem.append('g')
+            .attr('id', this._name + '_zones');
+        this._setupZones();        
 
-    if(this._fieldTypeActive === "braid") {
+    } else { //render vertex_centered view
         this._vertexElem = this._meshElem.append('g')
             .attr('id', this._name + '_vertices');
         this._setupRadius();
         this._setupVertices();
-    }
-    else if(this._fieldTypeActive === "radial") {
-        this._zonesElem = this._meshElem.append('g')
-            .attr('id', this._name + '_zones');
-        this._setupZones();
     }
 }
 
