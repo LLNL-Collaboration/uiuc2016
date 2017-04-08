@@ -10,11 +10,14 @@
 </head>
 <body>
 <div id="status_display"></div>
+<div id="view_control"></div>
 <div id="meshdiv" style="width:100%; height:100%;"></div>
 <script type="text/javascript">
 //<![CDATA[ 
 {
- 	websocket();
+	var client = new Client('meshviewer');
+	client.setPort(8081);
+	client.run();
 }
 //]]>  
 </script>

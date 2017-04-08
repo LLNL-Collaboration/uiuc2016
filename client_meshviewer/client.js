@@ -1,42 +1,65 @@
-/*
-    The C++ server is not configured to receive data from its client. 
-*/
-function websocket()
+function Client(name)
 {
-    var connection = new WebSocket("ws://localhost:8081/websocket");
-    var new_data;
-    var view_initialized = false;
-    var viewer;
-    connection.onopen = function (event) {
-        $("#status_display").html("<font color=green>[status=success]socket connection</font>");
+    this._name = name;
+
+    this._viewer = {};
+    this._view_initialized = false;
+    this._new_data = {};
+
+    this._port = -1;
+    this._connection = {};
+}
+
+Client.prototype.run = function() 
+{
+    if(this._port < 0) {
+        throw new Error("Port is not set yet.");
+        return;
     }
-    connection.onmessage = function (msg) 
+    this._websocket();
+}
+
+Client.prototype.setPort = function(port) 
+{
+    this._port = port;
+}
+
+/* The C++ server is not configured to receive data from its client. */
+Client.prototype._websocket = function()
+{
+    var self = this;
+
+    this._connection = new WebSocket("ws://localhost:"+this._port+"/websocket");
+    this._connection.onopen = function (event) {
+        $("#status_display").html("<font color=green>[status=success]socket connection </font>");
+    }
+    this._connection.onmessage = function (msg) 
     {
         // var data;
         try
         {
-            new_data=JSON.parse(msg.data);
+            self._new_data=JSON.parse(msg.data);
             $("#status_display").html("<font color=green>[status=success]</font>");
-            console.log(new_data);
+            console.log(self._new_data);
             //if this is an update
-            if ("normal_update" in new_data) {
-                if(!view_initialized) {
-                    $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
+            if ("normal_update" in self._new_data) {
+                if(!self._view_initialized) {
+                    $("#status_display").html("<font color=red>[status=error] update sent before view was initialized</font>");        
                 }
-                viewer.updateDataNormal(new_data);
-            } else if("compressed_update" in new_data){
+                self._viewer.updateDataNormal(self._new_data);
+            } else if("compressed_update" in self._new_data){
                 //compressed updates are no longer maintained
-                if(!view_initialized) {
-                    $("#status_display").html("<font color=green>[status=error] update sent before view was initialized</font>");        
+                if(!self._view_initialized) {
+                    $("#status_display").html("<font color=red>[status=error] update sent before view was initialized</font>");        
                 }
                 console.log("[status=error] compressed_update not supported");
                 // viewer.updateDataCompressed(new_data);
             } else { // if this is not an update
-                viewer = new MeshViewer("meshdiv");
-                viewer.loadData(new_data);
-                view_initialized = true;
+                self._viewer = new MeshViewer("meshdiv");
+                self._viewer.loadData(self._new_data);
+                self._view_initialized = true;
             }
-            window.onresize = function() { viewer.updateViewBox(); }
+            window.onresize = function() { self._viewer.updateViewBox(); }
 
         }
         catch(e)
@@ -48,19 +71,19 @@ function websocket()
         }
     }
       
-    connection.onerror = function (error)
+    this._connection.onerror = function (error)
     {
         console.log('WebSocket error');
         console.log(error)
-        connection.close();
+        self._connection.close();
         $("#status_display").html("<font color=red>[status=error]</font>");
     }
     
-    connection.onclose = function (error)
+    this._connection.onclose = function (error)
     {
         console.log('WebSocket closed');
         console.log(error)
-        connection.close();
+        self._connection.close();
         $("#status_display").html("<font color=orange>[status=disconnected]</font>");
     }
 }
