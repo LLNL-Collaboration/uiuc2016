@@ -31,6 +31,8 @@ function MeshViewer(name)
     
     this._shrink = 0.9;
     this._invShrink = 1 - this._shrink;
+
+    this._updatePause = false;
 }
 
 /******************** public functions ********************/
@@ -50,7 +52,6 @@ MeshViewer.prototype.loadData = function(data)
     //Load coordinate arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
-    console.log(this._nodes);
     //load connectivity array
     var topo = data.topologies.mesh.elements.connectivity;
     for (var i=0; i<topo.length/4; i++) {
@@ -72,8 +73,8 @@ MeshViewer.prototype.loadData = function(data)
     //this should sort fields types in order: braid, radial, vel
     this._fieldTypes = Object.keys(this._fields).sort();
 
-    //set the default view type
-    this._fieldTypeActive = this._fieldTypes[1];
+    //set the default view type as the first field type in the _fieldTypes array
+    this._fieldTypeActive = this._fieldTypes[0];
 
     //store which field types are associated with elements, or vertex
     this._fieldAssoc['element'] = [];
@@ -92,6 +93,11 @@ MeshViewer.prototype.loadData = function(data)
 
 MeshViewer.prototype.updateDataNormal = function(new_data)
 {
+    //if update is paused, do nothing.
+    if(this._updatePause) {
+        return;
+    }
+
     //update zones using connectivity array
     var mesh;
     var topo = new_data["conn_value"];
@@ -317,7 +323,7 @@ MeshViewer.prototype._setupZones = function()
               .style('stroke-width', '0.05')
               .style('opacity', 100);
          })
-        .on('mousemove', function(id) { self._updateToolTip(id); })
+        .on('mousemove', function(id) { self._updateZoneToolTip(id); })
         .on('mouseout', function(id) { 
             self._hideToolTip(); 
             d3.select(this)
@@ -348,7 +354,7 @@ MeshViewer.prototype._setupVertices = function()
               .style('stroke-width', '0.05')
               .style('opacity', 100);
          })
-        .on('mousemove', function(id) { self._updateToolTip(id); })
+        .on('mousemove', function(id) { self._updateVertexToolTip(id); })
         .on('mouseout', function(id) { 
             self._hideToolTip(); 
             d3.select(this)
@@ -397,21 +403,69 @@ MeshViewer.prototype._showToolTip = function()
     this._toolTip.transition().style('opacity', 100);
 }
 
-MeshViewer.prototype._updateToolTip = function(id)
+MeshViewer.prototype._updateVertexToolTip = function(id)
 {
     var rect = this._toolTip[0][0].getBoundingClientRect();
     var association = this._fields[this._fieldTypeActive]["association"];
-    var unitID;
-    if(this._fieldTypeActive === "vertex") {
-        unitID = "Vertex: "+ id + "<br>";
-    } else { //association is element
-        unitID = "Zone: "+ id + "<br>";
-    }
+    var unitID = "Vertex: "+ id + "<br>";
+    var vertexInfo = this._toolTipGetVertexInfo(id);
+    var fieldVal = this._toolTipGetActiveFieldValue(id);
+    var velInfo = this._toolTipGetVelInfo(id, association);
 
-    this._toolTip.html(unitID)
+    this._toolTip.html(unitID+vertexInfo+fieldVal+velInfo)
         .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
         .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
 
+}
+
+MeshViewer.prototype._updateZoneToolTip = function(id)
+{
+    var rect = this._toolTip[0][0].getBoundingClientRect();
+    var association = this._fields[this._fieldTypeActive]["association"];
+    var unitID = "Zone: "+ id + "<br>";
+    var zoneInfo = this._toolTipGetZoneInfo(id);
+    var fieldVal = this._toolTipGetActiveFieldValue(id);
+    var velInfo = this._toolTipGetVelInfo(id, association);
+
+    this._toolTip.html(unitID+zoneInfo+fieldVal+velInfo)
+        .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
+        .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
+
+}
+
+MeshViewer.prototype._toolTipGetVertexInfo = function(vertexID) {
+    var dims = this._dims;
+    return "Vertex "+ vertexID + ": "+ dims[0] + " : "+ this._vertices[vertexID][dims[0]] +
+            " , " + dims[1] + " : "+ this._vertices[vertexID][dims[1]] + "<br>";
+}
+
+MeshViewer.prototype._toolTipGetZoneInfo = function(zoneID) {
+    var dims = this._dims;
+    var zoneInfo = "";
+    var zoneVertices = this._zones[zoneID]["nids"];
+
+    for(var i = 0; i < zoneVertices.length; i++){
+        var vertexID = zoneVertices[i];
+        var coordinates =  "Vertex "+ vertexID + ": "+ dims[0] + " : "+ this._vertices[vertexID][dims[0]] +
+                    " , " + dims[1] + " : "+ this._vertices[vertexID][dims[1]] + "<br>";
+        zoneInfo = zoneInfo + coordinates;
+    }
+    return zoneInfo;
+}
+
+MeshViewer.prototype._toolTipGetActiveFieldValue = function(id) {
+    return this._fieldTypeActive.charAt(0).toUpperCase()+ this._fieldTypeActive.slice(1) +
+                 " value: " + this._fields[this._fieldTypeActive]["values"][id] + "<br>";
+}
+
+MeshViewer.prototype._toolTipGetVelInfo = function(id, association) {
+    var velInfo = "";
+    if(this._inArray("vel", this._fieldAssoc[association])) {
+        var velDims = Object.keys(this._fields["vel"]["values"]).sort();
+        velInfo = "Vel: "+ velDims[0] + " : " + this._fields["vel"]["values"][velDims[0]][id] + 
+                    " , " + velDims[1] +" : "+ this._fields["vel"]["values"][velDims[1]][id];
+    }
+    return velInfo;
 }
 
 MeshViewer.prototype._hideToolTip = function()
@@ -501,5 +555,22 @@ MeshViewer.prototype._setupGUI = function() {
         }
     });
 
-    
+    //add pause button
+    viewControlDiv.append('div')
+                .attr('id', 'pauseUpdate')
+                .on("click", function(){
+                    var activeClass = "paused";
+                    var alreadyActive = d3.select(this).classed(activeClass);
+                    if(!alreadyActive) {
+                        self._updatePause = true;
+                        d3.select(this).html('Resume');
+                        d3.select(this).classed(activeClass, true);
+                    } else {
+                        self._updatePause = false;
+                        d3.select(this).html('Pause');
+                        d3.select(this).classed(activeClass, false);
+                    }
+                })
+                .html('Pause');
+
 }

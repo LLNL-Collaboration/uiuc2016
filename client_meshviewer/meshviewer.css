@@ -37,12 +37,28 @@ html,body {
     border-radius: 2px;
 }
 
+#pauseUpdate {
+    display: inline-block;
+    padding:3px 8px 3px 8px;
+    font-size:18px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    background-color: #FA8072;
+    text-align: center;
+    text-decoration: none;
+    margin: 5px 5px 5px 5px;
+}
+
+#pauseUpdate:hover {
+    background-color: #E23D28;
+}
 
 .tooltip {
     position: absolute;
     background: rgba(0, 0, 0, 0.75);
     color: white;
-    text-align: center;
+    text-align: left;
     font: 14px sans-serif;
     line-height: 1;
     padding: 8px 12px;
