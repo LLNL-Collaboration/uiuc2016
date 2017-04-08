@@ -9,13 +9,34 @@ html,body {
     height: 100%;
 }
 
-.zoneClass {
-    fill: wheat;
+.view_option {
+    display:inline-block;
+    padding:3px 8px 3px 8px;
+    font-size:18px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    background-color: #414244;
+    text-align: center;
+    text-decoration: none;
+    margin: 5px 5px 5px 5px;
 }
 
-path:hover {
-    fill: crimson;
+.view_option:hover {
+    background-color: #F16438;
 }
+
+#status_display {
+    display: block;
+    background-color: #414244;
+    margin: 5px 5px 5px 5px;
+    font-size:18px;
+    padding:3px 8px 3px 8px;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 2px;
+}
+
 
 .tooltip {
     position: absolute;
