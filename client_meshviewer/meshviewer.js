@@ -50,7 +50,7 @@ MeshViewer.prototype.loadData = function(data)
     //Load coordinate arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
-
+    console.log(this._nodes);
     //load connectivity array
     var topo = data.topologies.mesh.elements.connectivity;
     for (var i=0; i<topo.length/4; i++) {
@@ -73,7 +73,7 @@ MeshViewer.prototype.loadData = function(data)
     this._fieldTypes = Object.keys(this._fields).sort();
 
     //set the default view type
-    this._fieldTypeActive = this._fieldTypes[0];
+    this._fieldTypeActive = this._fieldTypes[1];
 
     //store which field types are associated with elements, or vertex
     this._fieldAssoc['element'] = [];
@@ -82,7 +82,7 @@ MeshViewer.prototype.loadData = function(data)
         var fieldType = this._fieldTypes[i];
         this._fieldAssoc[this._fields[fieldType]["association"]].push(fieldType);
     }
-
+    this._setupGUI();
     this._setupColorMap();
     this._computeColor();
     this._setupActiveViewMesh();
@@ -140,19 +140,6 @@ MeshViewer.prototype.updateViewBox = function()
         vbox[3] = rect[1] * this._viewRes;
     }
     this._svgElem.attr('viewBox', vbox.join(' '));
-}
-
-MeshViewer.prototype.swtichFieldType = function(targetfieldType)
-{
-    if(this._inArray(targetfieldType, this._fieldTypes)) {
-        this._fieldTypeActive = targetfieldType;
-        this._removeMesh();
-        this._setupActiveViewMesh();
-        this._computeView();
-        this._setupView();
-    } else {
-        throw new Error("Target view type is currently not supported.")
-    }
 }
 
 MeshViewer.prototype.getFieldTypes = function() 
@@ -267,7 +254,6 @@ MeshViewer.prototype._setupZoom = function()
 }
 
 
-
 MeshViewer.prototype._setupActiveViewMesh = function()
 {
     this._divElem = d3.select('#' + this._name);
@@ -299,10 +285,23 @@ MeshViewer.prototype._removeMesh = function()
     this._svgElem.remove();
 }
 
+MeshViewer.prototype._switchFieldType = function(targetfieldType)
+{
+    if(this._inArray(targetfieldType, this._fieldTypes)) {
+        this._fieldTypeActive = targetfieldType;
+        this._removeMesh();
+        this._setupActiveViewMesh();
+        this._computeView();
+        this._setupView();
+    } else {
+        throw new Error("Target view type is currently not supported.")
+    }
+}
+
 MeshViewer.prototype._setupZones = function()
 {
     var self = this;  // for anonymous functions
-
+        
     this._zonesElem.selectAll('.zone')
         .data(Object.keys(this._zones)).enter()
         .append('path')
@@ -335,7 +334,7 @@ MeshViewer.prototype._setupVertices = function()
     this._vertexElem.selectAll('.vertex')
         .data(Object.keys(this._vertices)).enter()
         .append('circle')
-        .attr('id', function(id) { return self._name + '_z_' + id; })
+        .attr('id', function(id) { return self._name + '_v_' + id; })
         .attr('class', 'vertexClass')
         .attr('cx', function(id) { return self._vertices[id][self._dims[0]]; })
         .attr('cy', function(id) { return self._vertices[id][self._dims[1]]; })
@@ -401,15 +400,15 @@ MeshViewer.prototype._showToolTip = function()
 MeshViewer.prototype._updateToolTip = function(id)
 {
     var rect = this._toolTip[0][0].getBoundingClientRect();
-    
-    var unitType;
-    if(this._fieldTypeActive === "braid") {
-        unitType = "Vertex";
-    } else {
-        unitType = "Zone";
+    var association = this._fields[this._fieldTypeActive]["association"];
+    var unitID;
+    if(this._fieldTypeActive === "vertex") {
+        unitID = "Vertex: "+ id + "<br>";
+    } else { //association is element
+        unitID = "Zone: "+ id + "<br>";
     }
 
-    this._toolTip.text(unitType + ': ' + id)
+    this._toolTip.html(unitID)
         .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
         .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
 
@@ -422,8 +421,8 @@ MeshViewer.prototype._hideToolTip = function()
 
 MeshViewer.prototype._setupRadius = function ()
 {
-    var sorted_pos0 = this._nodes[this._dims[0]].sort(function(a,b){return a - b});
-    var sorted_pos1 = this._nodes[this._dims[1]].sort(function(a,b){return a - b});
+    var sorted_pos0 = this._nodes[this._dims[0]].slice().sort(function(a,b){return a - b});
+    var sorted_pos1 = this._nodes[this._dims[1]].slice().sort(function(a,b){return a - b});
     this._radius = Math.min(this._findSmallestDiff(sorted_pos0)/2, this._findSmallestDiff(sorted_pos1)/2);
 }
 
@@ -469,4 +468,38 @@ MeshViewer.prototype._inArray = function(needle, haystack) {
             return true;
     }
     return false;
+}
+
+MeshViewer.prototype._setupGUI = function() {
+    var viewControlDiv = d3.select('#view_control')
+
+    for(var i = 0; i < this._fieldTypes.length; i++) {
+        var fieldType = this._fieldTypes[i];
+        if(fieldType === "vel") {
+            continue;
+        }
+        var text = this._fields[fieldType]["association"] + "-centered " + fieldType;
+        var classAttr = "view_option";
+        if(this._fieldTypeActive === fieldType) {
+            classAttr = classAttr + " " + "active_view";
+        }
+        viewControlDiv.append('div')
+                    .attr('id', fieldType)
+                    .attr('class', classAttr)
+                    .html(text);
+    }
+
+    var self = this;
+    d3.selectAll("#view_control .view_option").on("click", function(){
+        var activeClass = "active_view";
+        var alreadyActive = d3.select(this).classed(activeClass);
+        if(!alreadyActive){
+            d3.selectAll(".view_option").classed(activeClass, false);
+            d3.select(this).classed(activeClass, true);
+            var targetFieldType = d3.select(this).attr("id");
+            self._switchFieldType(targetFieldType);
+        }
+    });
+
+    
 }
