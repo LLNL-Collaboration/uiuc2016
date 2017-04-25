@@ -65,3 +65,13 @@ html,body {
     border-radius: 2px;
     pointer-events: none;
 }
+
+path:hover {
+    stroke: black;
+    stroke-width: 0.02;
+}
+
+circle:hover {
+    stroke: black;
+    stroke-width: 0.02;
+}

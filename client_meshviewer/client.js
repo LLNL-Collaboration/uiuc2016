@@ -1,3 +1,4 @@
+// client for opening a websocket connection to c++ relay server
 function Client(name)
 {
     this._name = name;
@@ -10,6 +11,7 @@ function Client(name)
     this._connection = {};
 }
 
+// start a connection with the c++ relay server
 Client.prototype.run = function() 
 {
     if(this._port < 0) {
@@ -24,7 +26,7 @@ Client.prototype.setPort = function(port)
     this._port = port;
 }
 
-/* The C++ server is not configured to receive data from its client. */
+// the websocket that receives data from c++ relay server
 Client.prototype._websocket = function()
 {
     var self = this;

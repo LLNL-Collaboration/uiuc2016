@@ -1,5 +1,4 @@
 /******************** basic viewer for 2D meshes ********************/
-
 function MeshViewer(name)
 {
     this._name = name;
@@ -16,6 +15,10 @@ function MeshViewer(name)
     this._fields = {};
     this._scale = {};
     this._vertices = {};
+    this._elemShape = "";
+    this._elemVertexSize = 0;
+
+    // the radius used for drawing circles in a vertex-centered view
     this._radius = 0;
 
     this._views = {};
@@ -33,6 +36,22 @@ function MeshViewer(name)
     this._invShrink = 1 - this._shrink;
 
     this._updatePause = false;
+
+    this._elemShapeMap = {
+        "point" : 1,
+        "line" : 2,
+        "tri" : 3,
+        "quad" : 4,
+        "tet" : 4,
+        "hex" : 8 
+    };
+
+    /*  
+        Define the color values used for colormap. 
+        The first value will be associated with the lowest field value.
+        The last value will be associated with the highest field value.
+    */
+    this._colors = ["#FA8383","#9DD3CC","#FFE4B3"];
 }
 
 /******************** public functions ********************/
@@ -49,40 +68,47 @@ MeshViewer.prototype.loadData = function(data)
         this._dims[1] = 'y'
     }
 
-    //Load coordinate arrays
+    // load coordinate arrays
     this._nodes[this._dims[0]] = data.coordsets.coords.values[this._dims[0]];
     this._nodes[this._dims[1]] = data.coordsets.coords.values[this._dims[1]];
-    //load connectivity array
-    var topo = data.topologies.mesh.elements.connectivity;
-    for (var i=0; i<topo.length/4; i++) {
-        var mesh = topo.slice(i*4, (i+1)*4);
-        this._zones[i] = {
-            'nids': mesh
-        };
-    }
 
+    // form an array of vertices based on coordinate arrays.
+    // it is used for vertex-centered view.
     for (var i = 0; i < this._nodes[this._dims[0]].length; i++) {
         var vertex = {};
         vertex[this._dims[0]] = this._nodes[this._dims[0]][i];
         vertex[this._dims[1]] = this._nodes[this._dims[1]][i];
         this._vertices[i] = vertex;
     }
-    //load fields array
+
+    // get element shape 
+    this._elemShape = data.topologies.mesh.elements.shape;
+    this._elemVertexSize = this._elemShapeMap[this._elemShape];
+
+    // load connectivity array
+    var topo = data.topologies.mesh.elements.connectivity;
+    for (var i=0; i<topo.length/this._elemVertexSize; i++) {
+        var mesh = topo.slice(i*this._elemVertexSize, (i+1)*this._elemVertexSize);
+        this._zones[i] ={"nids": mesh};
+    }
+
+    // load fields array
     this._fields = data.fields;
 
-    //this should sort fields types in order: braid, radial, vel
-    this._fieldTypes = Object.keys(this._fields).sort();
+    // get all the field types in this Blueprint data
+    this._fieldTypes = Object.keys(this._fields);
 
-    //set the default view type as the first field type in the _fieldTypes array
+    // set the default view type as the first field type in the _fieldTypes array
     this._fieldTypeActive = this._fieldTypes[0];
 
-    //store which field types are associated with elements, or vertex
+    // store which field types are associated with elements, or vertex
     this._fieldAssoc['element'] = [];
     this._fieldAssoc['vertex'] = [];
     for(var i = 0; i < this._fieldTypes.length; i++) {
         var fieldType = this._fieldTypes[i];
         this._fieldAssoc[this._fields[fieldType]["association"]].push(fieldType);
     }
+
     this._setupGUI();
     this._setupColorMap();
     this._computeColor();
@@ -91,27 +117,28 @@ MeshViewer.prototype.loadData = function(data)
     this._setupView();
 }
 
+// update existing mesh data with new data sent from the server
 MeshViewer.prototype.updateDataNormal = function(new_data)
 {
-    //if update is paused, do nothing.
+    // if update is paused, do nothing.
     if(this._updatePause) {
         return;
     }
 
-    //update zones using connectivity array
+    // update zones using connectivity array
     var mesh;
     var topo = new_data["conn_value"];
-    for(var i = 0; i < topo.length/4; i++) {
-        mesh = topo.slice(i*4, (i+1)*4);
+    for(var i = 0; i < topo.length/this._elemVertexSize; i++) {
+        mesh = topo.slice(i*this._elemVertexSize, (i+1)*this._elemVertexSize);
         this._zones[i]["nids"] = mesh;
     }
 
-    //update rz positions using rz arrays
+    // update rz (or xy) positions using rz (or xy) arrays
     var dims = this._dims;
     this._nodes[dims[0]] = new_data[dims[0]];
     this._nodes[dims[1]] = new_data[dims[1]];
 
-    //update fields using field array
+    // update fields using field array
     this._fields = new_data.fields;
 
     this._removeMesh();
@@ -121,6 +148,7 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
     this._computeView();
     this._setupView();
 }
+
 
 MeshViewer.prototype.updateViewBox = function()
 {
@@ -189,7 +217,9 @@ MeshViewer.prototype._shrinkZone = function(zone)
     var self = this;  // for anonymous functions
 
     var shrinkFunc = function(mid) {
-        return function(id) { return self._shrinkNode(mid, [nodes[dims[0]][id], nodes[dims[1]][id]]); };
+        return function(id) { 
+            return self._shrinkNode(mid, [nodes[dims[0]][id], nodes[dims[1]][id]]); 
+        };
     }
     return ids.map(shrinkFunc(zone['mid']));
 }
@@ -217,34 +247,38 @@ MeshViewer.prototype._updateTransform = function()
     this._meshElem.attr('transform', transStr + scaleStr);
 }
 
+
 MeshViewer.prototype._setupColorMap = function ()
 {
     for(var i = 0; i < this._fieldTypes.length; i++) {
         var fieldType = this._fieldTypes[i];
         if(fieldType === "vel") {
-            //field type for vel is not supported
+            // field type for vel is not supported
             continue;
         }
         var min_val = this._findMin(this._fields[fieldType]["values"]);
         var max_val = this._findMax(this._fields[fieldType]["values"]);
         var colormap = d3.scale.linear()
-                    .domain([ min_val, (min_val+max_val)/2.0, max_val])
-                    .range(["#FA8383","#9DD3CC","#FFE4B3"]);
+                    .domain(this._linspace(min_val, max_val, this._colors.length))
+                    .range(this._colors);
         this._scale[fieldType] = colormap;
     }
 }
 
+// use the colormap to compute the field colors based on field values
 MeshViewer.prototype._computeColor = function()
 {
     for(var i = 0; i < this._fieldTypes.length; i++) {
         var fieldType = this._fieldTypes[i];
         if(fieldType === "vel") {
-            //field type for vel is not supported
+            // field type for vel is not supported
             continue;
         }
-        this._fieldColor[fieldType] = []
-        for(var j = 0; j < this._fields[fieldType]["values"].length; j++) {
-            this._fieldColor[fieldType].push(this._scale[fieldType](this._fields[fieldType]["values"][j]));
+        var length = this._fields[fieldType]["values"].length;
+        this._fieldColor[fieldType] = Array(length);
+        for(var j = 0; j < length; j++) {
+            this._fieldColor[fieldType][j] = 
+                    this._scale[fieldType](this._fields[fieldType]["values"][j]);
         }        
     }
 }
@@ -259,7 +293,7 @@ MeshViewer.prototype._setupZoom = function()
         .on('zoom', function() { self._updateTransform(); });
 }
 
-
+// render the current view based on which view is active (vertex-centered or element-centered)
 MeshViewer.prototype._setupActiveViewMesh = function()
 {
     this._divElem = d3.select('#' + this._name);
@@ -272,13 +306,13 @@ MeshViewer.prototype._setupActiveViewMesh = function()
     this._meshElem = this._svgElem.append('g')
         .attr('id', this._name + '_mesh');
 
-    //render element_centered view
+    // render element_centered view
     if(this._inArray(this._fieldTypeActive, this._fieldAssoc["element"])) {
         this._zonesElem = this._meshElem.append('g')
             .attr('id', this._name + '_zones');
         this._setupZones();        
 
-    } else { //render vertex_centered view
+    } else { // render vertex_centered view
         this._vertexElem = this._meshElem.append('g')
             .attr('id', this._name + '_vertices');
         this._setupRadius();
@@ -286,11 +320,13 @@ MeshViewer.prototype._setupActiveViewMesh = function()
     }
 }
 
+// remove the current mesh view section
 MeshViewer.prototype._removeMesh = function() 
 {
     this._svgElem.remove();
 }
 
+// chnage the current mesh view to the target view
 MeshViewer.prototype._switchFieldType = function(targetfieldType)
 {
     if(this._inArray(targetfieldType, this._fieldTypes)) {
@@ -304,6 +340,7 @@ MeshViewer.prototype._switchFieldType = function(targetfieldType)
     }
 }
 
+// setup a element-centered view
 MeshViewer.prototype._setupZones = function()
 {
     var self = this;  // for anonymous functions
@@ -315,24 +352,12 @@ MeshViewer.prototype._setupZones = function()
         .attr('class', 'zoneClass')
         .attr('d', function(id) { return self._createPath(id); })
         .style('fill', function(id) {return self._fieldColor[self._fieldTypeActive][id];})
-        .on('mouseover', function() { 
-            self._showToolTip();
-            d3.select(this)
-              .style('fill','red')
-              .style('stroke', 'black')
-              .style('stroke-width', '0.05')
-              .style('opacity', 100);
-         })
+        .on('mouseover', function() { self._showToolTip();})
         .on('mousemove', function(id) { self._updateZoneToolTip(id); })
-        .on('mouseout', function(id) { 
-            self._hideToolTip(); 
-            d3.select(this)
-              .style('fill', self._fieldColor[self._fieldTypeActive][id])
-              .style('stroke', '')
-              .style('stroke-width', '')
-        });
+        .on('mouseout', function(id) { self._hideToolTip(); });
 }
 
+// setup a vertex-centered view
 MeshViewer.prototype._setupVertices = function()
 {
     var self = this;
@@ -346,26 +371,13 @@ MeshViewer.prototype._setupVertices = function()
         .attr('cy', function(id) { return self._vertices[id][self._dims[1]]; })
         .attr('r', function() { return self._radius; })
         .style('fill', function(id) {return self._fieldColor[self._fieldTypeActive][id];})
-        .on('mouseover', function() { 
-            self._showToolTip();
-            d3.select(this)
-              .style('fill','red')
-              .style('stroke', 'black')
-              .style('stroke-width', '0.05')
-              .style('opacity', 100);
-         })
+        .on('mouseover', function() { self._showToolTip(); })
         .on('mousemove', function(id) { self._updateVertexToolTip(id); })
-        .on('mouseout', function(id) { 
-            self._hideToolTip(); 
-            d3.select(this)
-              .style('fill', self._fieldColor[self._fieldTypeActive][id])
-              .style('stroke', '')
-              .style('stroke-width', '')
-        });        
+        .on('mouseout', function(id) { self._hideToolTip(); });        
 }
 
 
-//get the newest views based on current data.
+// get the newest views based on current data.
 MeshViewer.prototype._computeView = function()
 {
     var dims = this._dims;
@@ -403,21 +415,7 @@ MeshViewer.prototype._showToolTip = function()
     this._toolTip.transition().style('opacity', 100);
 }
 
-MeshViewer.prototype._updateVertexToolTip = function(id)
-{
-    var rect = this._toolTip[0][0].getBoundingClientRect();
-    var association = this._fields[this._fieldTypeActive]["association"];
-    var unitID = "Vertex: "+ id + "<br>";
-    var vertexInfo = this._toolTipGetVertexInfo(id);
-    var fieldVal = this._toolTipGetActiveFieldValue(id);
-    var velInfo = this._toolTipGetVelInfo(id, association);
-
-    this._toolTip.html(unitID+vertexInfo+fieldVal+velInfo)
-        .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
-        .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
-
-}
-
+// set up tooltip for a element-centered view
 MeshViewer.prototype._updateZoneToolTip = function(id)
 {
     var rect = this._toolTip[0][0].getBoundingClientRect();
@@ -433,10 +431,28 @@ MeshViewer.prototype._updateZoneToolTip = function(id)
 
 }
 
+// set up tooltip for a vertex-centered view
+MeshViewer.prototype._updateVertexToolTip = function(id)
+{
+    var rect = this._toolTip[0][0].getBoundingClientRect();
+    var association = this._fields[this._fieldTypeActive]["association"];
+    var unitID = "Vertex: "+ id + "<br>";
+    var vertexInfo = this._toolTipGetVertexInfo(id);
+    var fieldVal = this._toolTipGetActiveFieldValue(id);
+    var velInfo = this._toolTipGetVelInfo(id, association);
+
+    this._toolTip.html(unitID+vertexInfo+fieldVal+velInfo)
+        .style('left', (d3.event.pageX - 0.5 * rect.width) + 'px')
+        .style('top', (d3.event.pageY - rect.height - 3) + 'px');  // 3px more separation
+
+}
+
 MeshViewer.prototype._toolTipGetVertexInfo = function(vertexID) {
     var dims = this._dims;
-    return "Vertex "+ vertexID + ": "+ dims[0] + " : "+ this._vertices[vertexID][dims[0]] +
-            " , " + dims[1] + " : "+ this._vertices[vertexID][dims[1]] + "<br>";
+    return "Vertex "+ vertexID + ": "+ dims[0] + " : " + 
+                this._vertices[vertexID][dims[0]] +
+                " , " + dims[1] + " : " + 
+                this._vertices[vertexID][dims[1]] + "<br>";
 }
 
 MeshViewer.prototype._toolTipGetZoneInfo = function(zoneID) {
@@ -446,24 +462,28 @@ MeshViewer.prototype._toolTipGetZoneInfo = function(zoneID) {
 
     for(var i = 0; i < zoneVertices.length; i++){
         var vertexID = zoneVertices[i];
-        var coordinates =  "Vertex "+ vertexID + ": "+ dims[0] + " : "+ this._vertices[vertexID][dims[0]] +
-                    " , " + dims[1] + " : "+ this._vertices[vertexID][dims[1]] + "<br>";
+        var coordinates =  "Vertex "+ vertexID + ": "+ dims[0] + " : "+ 
+                    this._vertices[vertexID][dims[0]] + " , " + dims[1] + 
+                    " : "+ this._vertices[vertexID][dims[1]] + "<br>";
         zoneInfo = zoneInfo + coordinates;
     }
     return zoneInfo;
 }
 
 MeshViewer.prototype._toolTipGetActiveFieldValue = function(id) {
-    return this._fieldTypeActive.charAt(0).toUpperCase()+ this._fieldTypeActive.slice(1) +
-                 " value: " + this._fields[this._fieldTypeActive]["values"][id] + "<br>";
+    return this._fieldTypeActive.charAt(0).toUpperCase() + 
+                this._fieldTypeActive.slice(1) + " value: " + 
+                this._fields[this._fieldTypeActive]["values"][id] + "<br>";
 }
 
 MeshViewer.prototype._toolTipGetVelInfo = function(id, association) {
     var velInfo = "";
     if(this._inArray("vel", this._fieldAssoc[association])) {
         var velDims = Object.keys(this._fields["vel"]["values"]).sort();
-        velInfo = "Vel: "+ velDims[0] + " : " + this._fields["vel"]["values"][velDims[0]][id] + 
-                    " , " + velDims[1] +" : "+ this._fields["vel"]["values"][velDims[1]][id];
+        velInfo = "Vel: "+ velDims[0] + " : " + 
+                    this._fields["vel"]["values"][velDims[0]][id] + 
+                    " , " + velDims[1] +" : " + 
+                    this._fields["vel"]["values"][velDims[1]][id];
     }
     return velInfo;
 }
@@ -477,9 +497,11 @@ MeshViewer.prototype._setupRadius = function ()
 {
     var sorted_pos0 = this._nodes[this._dims[0]].slice().sort(function(a,b){return a - b});
     var sorted_pos1 = this._nodes[this._dims[1]].slice().sort(function(a,b){return a - b});
-    this._radius = Math.min(this._findSmallestDiff(sorted_pos0)/2, this._findSmallestDiff(sorted_pos1)/2);
+    this._radius = Math.min(this._findSmallestDiff(sorted_pos0)/2, 
+                            this._findSmallestDiff(sorted_pos1)/2);
 }
 
+// used to calculate the radius of circles in a vertex-centered view
 MeshViewer.prototype._findSmallestDiff = function (pos_arr)
 {
     var result;
@@ -524,6 +546,18 @@ MeshViewer.prototype._inArray = function(needle, haystack) {
     return false;
 }
 
+// from https://gist.github.com/joates/6584908
+// used for calculating domains in a colormap
+MeshViewer.prototype._linspace = function (a,b,n) {
+    if(typeof n === "undefined") n = Math.max(Math.round(b-a)+1,1);
+    if(n<2) { return n===1?[a]:[]; }
+    var i,ret = Array(n);
+    n--;
+    for(i=n;i>=0;i--) { ret[i] = (i*b+(n-i)*a)/n; }
+    return ret;
+}
+
+// set up the user interface for our meshviewer
 MeshViewer.prototype._setupGUI = function() {
     var viewControlDiv = d3.select('#view_control')
 
@@ -543,6 +577,7 @@ MeshViewer.prototype._setupGUI = function() {
                     .html(text);
     }
 
+    // add view options (vertex-centered, element-centered) depending on the Blueprint data
     var self = this;
     d3.selectAll("#view_control .view_option").on("click", function(){
         var activeClass = "active_view";
@@ -555,7 +590,7 @@ MeshViewer.prototype._setupGUI = function() {
         }
     });
 
-    //add pause button
+    // add pause button
     viewControlDiv.append('div')
                 .attr('id', 'pauseUpdate')
                 .on("click", function(){
