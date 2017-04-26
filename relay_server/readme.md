@@ -5,13 +5,10 @@
 	change line 52:
 
 	```
-	set(RELAY_TESTS  t_relay_smoke
-    
-    	             t_relay_io_basic
-                     
-        	         t_relay_node_viewer
-                     
-            	     t_relay_websocket)
+      set(RELAY_TESTS t_relay_smoke
+                      t_relay_io_basic
+                      t_relay_node_viewer
+                      t_relay_websocket)
 	```
     to:
   	```
@@ -26,10 +23,10 @@
 
    change line 148:
 
-   		target_link_libraries(conduit_relay PUBLIC conduit)
+		target_link_libraries(conduit_relay PUBLIC conduit)
    to:
    
-   		target_link_libraries(conduit_relay PUBLIC conduit conduit_blueprint)
+		target_link_libraries(conduit_relay PUBLIC conduit conduit_blueprint)
 
 4. navigate to __*conduit/build-debug*__, run `make -j 8` to rebuild the files
 5. the server executable will be available at __*conduit/build-debug/tests/relay/t_relay_blueprint_websocket*__
@@ -40,21 +37,27 @@
 
 ##### Under Docker:
 
-1. run docker container: `docker run -p 8081:8081 -t -i conduit-ubuntu:current`
-
+1. run docker container: 
+	```
+	docker run -p 8081:8081 -t -i conduit-ubuntu:current
+	```
 
 2. under docker container, make sure you build the server executable by following steps mentioned above
 
 3. run the server:
 
 	* Option A: send default braid 2D example to client, by running 
-        
-        `./t_relay_blueprint_websocket launch default_data --port 8081 --address 0.0.0.0`
-        
+	
+        ```
+        ./t_relay_blueprint_websocket launch default_data --port 8081 --address 0.0.0.0
+        ```
+	
 	* Option B: send hdf5 or json files to client, by running 
-    
-    	`./t_relay_blueprint_websocket launch --port 8081 --address 0.0.0.0 --datapath <path_to_the_file>`
-        
+	
+    	```
+    	./t_relay_blueprint_websocket launch --port 8081 --address 0.0.0.0 --datapath <path_to_the_file>
+        ```
+
 4. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
 
@@ -67,11 +70,16 @@
 
 	* Option A: send default braid 2D example to client, by running
 	
+	```
     	`./t_relay_blueprint_websocket launch default_data --port 8081`
-
+	```
+	
 	* Option B: send hdf5 or json files to client, by running 
-
-      `./t_relay_blueprint_websocket launch --port 8081 --datapath <path_to_the_file>`
+	
+	```
+	./t_relay_blueprint_websocket launch --port 8081 --datapath <path_to_the_file>
+	```
+	
 3. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
 ##### Additional options for server:
