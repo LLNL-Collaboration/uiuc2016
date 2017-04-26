@@ -49,13 +49,13 @@
 	* Option A: send default braid 2D example to client, by running 
 	
         ```
-        ./t_relay_blueprint_websocket launch default_data --port 8081 --address 0.0.0.0
+        ./t_relay_blueprint_websocket launch default_data --port 8081 --address 0.0.0.0 
         ```
 	
 	* Option B: send hdf5 or json files to client, by running 
 	
     	```
-    	./t_relay_blueprint_websocket launch --port 8081 --address 0.0.0.0 --datapath <path_to_the_file>
+    	./t_relay_blueprint_websocket launch --port 8081 --address 0.0.0.0 --datapath <path_to_the_file> 
         ```
 
 4. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
@@ -70,9 +70,9 @@
 
 	* Option A: send default braid 2D example to client, by running
 	
-	```
-    	`./t_relay_blueprint_websocket launch default_data --port 8081`
-	```
+    	```
+    	./t_relay_blueprint_websocket launch default_data --port 8081
+    	```
 	
 	* Option B: send hdf5 or json files to client, by running 
 	
