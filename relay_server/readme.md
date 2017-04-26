@@ -1,26 +1,38 @@
-TO BUILD THIS SERVER UNDER CONDUIT:
-1. copy the file "t_relay_blueprint_websocket.cpp" to "conduit/src/tests/relay/"
-2. open "conduit/src/tests/relay/CMakeLists.txt"
-   change line 52: 
- 	"set(RELAY_TESTS  t_relay_smoke
+## TO BUILD THIS SERVER UNDER CONDUIT:
+1. Copy the file __*t_relay_blueprint_websocket.cpp*__ to __*conduit/src/tests/relay/*__
+2. open __*conduit/src/tests/relay/CMakeLists.txt*__
+
+	change line 52:
+
+	```
+	set(RELAY_TESTS  t_relay_smoke
+    
     	             t_relay_io_basic
+                     
         	         t_relay_node_viewer
-            	     t_relay_websocket)"
-   to:
- 	"set(RELAY_TESTS t_relay_smoke
-                  	t_relay_io_basic
-                  	t_relay_node_viewer
-                  	t_relay_websocket
-                  	t_relay_blueprint_websocket)"
+                     
+            	     t_relay_websocket)
+	```
+    to:
+  	```
+      set(RELAY_TESTS t_relay_smoke
+                      t_relay_io_basic
+                      t_relay_node_viewer
+                      t_relay_websocket
+                      t_relay_blueprint_websocket)
+  	```
 
-3. open "conduit/src/libs/relay/CMakeLists.txt"
+3. open __*conduit/src/libs/relay/CMakeLists.txt*__
+
    change line 148:
-   		"target_link_libraries(conduit_relay PUBLIC conduit)"
-   to:
-   		"target_link_libraries(conduit_relay PUBLIC conduit conduit_blueprint)"
 
-4. navigate to "conduit/build-debug", run "make -j 8" to rebuild the files
-5. the server executable will be available at "conduit/build-debug/tests/relay/t_relay_blueprint_websocket"
+   		target_link_libraries(conduit_relay PUBLIC conduit)
+   to:
+   
+   		target_link_libraries(conduit_relay PUBLIC conduit conduit_blueprint)
+
+4. navigate to __*conduit/build-debug*__, run `make -j 8` to rebuild the files
+5. the server executable will be available at __*conduit/build-debug/tests/relay/t_relay_blueprint_websocket*__
 
 
 HOW TO RUN THIS SERVER?
