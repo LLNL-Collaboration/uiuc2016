@@ -135,8 +135,8 @@ MeshViewer.prototype.updateDataNormal = function(new_data)
 
     // update rz (or xy) positions using rz (or xy) arrays
     var dims = this._dims;
-    this._nodes[dims[0]] = new_data[dims[0]];
-    this._nodes[dims[1]] = new_data[dims[1]];
+    this._nodes[dims[0]] = new_data["coords"][dims[0]];
+    this._nodes[dims[1]] = new_data["coords"][dims[1]];
 
     // update fields using field array
     this._fields = new_data.fields;
