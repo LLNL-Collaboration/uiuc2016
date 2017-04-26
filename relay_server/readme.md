@@ -34,9 +34,9 @@
 4. navigate to __*conduit/build-debug*__, run `make -j 8` to rebuild the files
 5. the server executable will be available at __*conduit/build-debug/tests/relay/t_relay_blueprint_websocket*__
 
-
+<br />
 ## HOW TO RUN THIS SERVER?
-Under Docker:
+##### Under Docker:
 
 1. run docker container: `docker run -p 8081:8081 -t -i conduit-ubuntu:current`
 
@@ -55,7 +55,8 @@ Under Docker:
         
 4. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
-Under local machine:
+
+##### Under local machine:
 
 1. make sure you build the server executable by following steps mentioned above
 
@@ -71,7 +72,6 @@ Under local machine:
       `./t_relay_blueprint_websocket launch --port 8081 --datapath <path_to_the_file>`
 3. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
-
-Additional options for server:
+##### Additional options for server:
 
 	--sleep_between_updates <sleep time between updates (default = 1000)>
