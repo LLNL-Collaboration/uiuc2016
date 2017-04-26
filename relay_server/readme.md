@@ -35,7 +35,9 @@
 5. the server executable will be available at __*conduit/build-debug/tests/relay/t_relay_blueprint_websocket*__
 
 <br />
+  
 ## HOW TO RUN THIS SERVER?
+
 ##### Under Docker:
 
 1. run docker container: `docker run -p 8081:8081 -t -i conduit-ubuntu:current`
