@@ -1,4 +1,4 @@
-To build this server under conduit:
+TO BUILD THIS SERVER UNDER CONDUIT:
 1. copy the file "t_relay_blueprint_websocket.cpp" to "conduit/src/tests/relay/"
 2. open "conduit/src/tests/relay/CMakeLists.txt"
    change line 52: 
@@ -23,7 +23,7 @@ To build this server under conduit:
 5. the server executable will be available at "conduit/build-debug/tests/relay/t_relay_blueprint_websocket"
 
 
-How to run this server?
+HOW TO RUN THIS SERVER?
 Under Docker:
 1. run docker container: "docker run -p 8081:8081 -t -i conduit-ubuntu:current"
 2. under docker container, make sure you build the server executable by following steps mentioned above
