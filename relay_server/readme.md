@@ -35,7 +35,7 @@
   
 ## HOW TO RUN THIS SERVER?
 
-##### Under Docker:
+#### Under Docker:
 
 1. run docker container: 
 	```
@@ -61,7 +61,7 @@
 4. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
 
-##### Under local machine:
+#### Under local machine:
 
 1. make sure you build the server executable by following steps mentioned above
 
@@ -82,6 +82,6 @@
 	
 3. open __*client_meshviewer/index.html*__ with local machine browser, you should see mesh rendered by the data sent from the server.
 
-##### Additional options for server:
+#### Additional options for server:
 
 	--sleep_between_updates <sleep time between updates (default = 1000)>
